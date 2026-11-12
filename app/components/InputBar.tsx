@@ -271,7 +271,7 @@ export default function InputBar() {
         }}
         className={
           isTopicHome
-            ? "mx-auto flex w-full items-center gap-1 border-b border-white py-2 md:max-w-[760px]"
+            ? "mx-auto flex w-full items-center gap-1 border-b-[0.5px] border-white/60 py-2 md:max-w-[760px]"
             : "mx-auto flex items-center gap-1 rounded-full bg-white/[0.12] py-3 pl-3 pr-2 md:max-w-[760px]"
         }
       >
