@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import InputBar from "./components/InputBar";
+import TopBar from "./components/TopBar";
+import BottomBar from "./components/BottomBar";
 import DecompositionTree from "./components/DecompositionTree";
 import ChipSidePanel from "./components/ChipSidePanel";
 import SettingsModal from "./components/SettingsModal";
@@ -65,6 +67,15 @@ function PageInner() {
     inputMode === "topic" &&
     (Boolean(pendingTopic) || Boolean(decomposition) || inTopicPage);
   const hideInputBar = hideInputBarInMemoList || hideInputBarInTopic;
+  // Topic home = empty-state screen on the 사고확장 tab. This is where the
+  // new TopBar + BottomBar shell takes over from the legacy centered
+  // InputBar. Pending/decomposition/opened-page keep the legacy layout
+  // until step 2 of the refactor absorbs them.
+  const isTopicHome =
+    inputMode === "topic" &&
+    !pendingTopic &&
+    !decomposition &&
+    !inTopicPage;
   const canGoBack = inputMode === "memo" && !memoListMode;
   // Bottom-sheet variant only applies to the "verify auto-opened the
   // chip panel while the user is on a 사고확장 topic" flow. A manual
@@ -229,8 +240,18 @@ function PageInner() {
                   : "flex"
             }`}
           >
-            {!hideInputBar && <InputBar />}
-            <DecompositionTree />
+            {isTopicHome ? (
+              <div className="flex flex-1 flex-col justify-between gap-4 py-4">
+                <TopBar disableMemo />
+                <div className="flex-1" />
+                <BottomBar />
+              </div>
+            ) : (
+              <>
+                {!hideInputBar && <InputBar />}
+                <DecompositionTree />
+              </>
+            )}
           </main>
           {inSplit && (
             <div
@@ -246,33 +267,15 @@ function PageInner() {
               [
                 { key: "topic", label: "사고확장" },
                 { key: "memo", label: "메모" },
-                { key: "chip", label: "칩" },
               ] as const
             ).map((t) => {
-              const active =
-                inSplit
-                  ? activeSplitView === t.key
-                  : t.key === "chip"
-                    ? showChipPanel
-                    : !showChipPanel && inputMode === t.key;
+              const active = inSplit
+                ? activeSplitView === t.key
+                : !showChipPanel && inputMode === t.key;
               return (
                 <button
                   key={t.key}
                   onClick={() => {
-                    if (t.key === "chip") {
-                      if (showChipPanel && !inSplit) {
-                        setChipPanelOpen(false);
-                        setChipPanelFullScreen(false);
-                        return;
-                      }
-                      // Deliberate tap on the 칩 tab → always full-
-                      // screen; the half-sheet layout is reserved for
-                      // the verify auto-trigger path.
-                      setChipPanelFullScreen(true);
-                      setChipPanelOpen(true);
-                      if (inSplit) setActiveSplitView("chip");
-                      return;
-                    }
                     if (inSplit) {
                       setActiveSplitView(t.key);
                       return;
@@ -308,15 +311,7 @@ function PageInner() {
                       : "text-text-muted hover:text-text-secondary"
                   }`}
                 >
-                  <span
-                    className={
-                      active && t.key === "chip" && chipAsBottomSheet
-                        ? "rounded-full border border-white px-6 py-1.5"
-                        : ""
-                    }
-                  >
-                    {t.label}
-                  </span>
+                  <span>{t.label}</span>
                 </button>
               );
             })}
