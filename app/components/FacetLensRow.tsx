@@ -20,6 +20,7 @@ export default function FacetLensRow({
   collapsed = false,
   onCollapseChange,
   hideLabel = false,
+  singleLine = false,
 }: {
   currentLens: SelectedLens | null;
   onChangeLens: (lens: SelectedLens | null) => void;
@@ -28,6 +29,8 @@ export default function FacetLensRow({
   // Skip the row's own "렌즈" label — used by accordion wrappers that
   // render their own header above the chip grid.
   hideLabel?: boolean;
+  // Force horizontal scroll track instead of wrapping.
+  singleLine?: boolean;
 }) {
   const { customLenses, addCustomLens, removeCustomLens } = useIdea();
   const [openDiscipline, setOpenDiscipline] = useState<string | null>(null);
@@ -88,7 +91,13 @@ export default function FacetLensRow({
           )}
         </div>
       )}
-      <div className="flex flex-wrap gap-1">
+      <div
+        className={
+          singleLine
+            ? "flex gap-1 overflow-x-auto whitespace-nowrap"
+            : "flex flex-wrap gap-1"
+        }
+      >
         {opened ? (
           <>
             <button

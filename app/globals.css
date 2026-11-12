@@ -57,6 +57,12 @@ body {
 .pb-safe-14 {
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 3.5rem);
 }
+.pb-safe-12 {
+  /* Used by the 사고확장 home shell so the BottomBar can sit right above
+     the mobile nav tab bar (nav height ≈ 3rem) instead of leaving the
+     larger 0.5rem gap that pb-safe-14 reserves. */
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 3rem);
+}
 .bottom-safe-14 {
   /* Aligns with the mobile bottom-nav's top edge. Nav height is
      approximately 3rem (buttons: py-3.5 + text-[14px]) plus safe-area

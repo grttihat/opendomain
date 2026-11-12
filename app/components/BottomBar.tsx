@@ -4,6 +4,12 @@ import { useState } from "react";
 import { useIdea } from "../state/IdeaContext";
 import DirectionChipRow from "./DirectionChipRow";
 import FacetLensRow from "./FacetLensRow";
+import {
+  kIndustryPool,
+  kPsychologyPool,
+  kObjectPool,
+} from "@/lib/constants";
+import type { TopMode } from "./TopBar";
 
 type Axis = "direction" | "lens" | "chip";
 
@@ -83,10 +89,21 @@ const AXES: { key: Axis; label: string; icon: JSX.Element }[] = [
   },
 ];
 
-export default function BottomBar() {
+// Flat chip pool used by the 칩 axis one-line row. Order = industry →
+// psychology → object so the user hits the most grounded physical
+// examples first.
+const CHIP_POOL: { text: string; kind: string }[] = [
+  ...kIndustryPool.map((c) => ({ text: c, kind: "industry" })),
+  ...kPsychologyPool.map((c) => ({ text: c, kind: "psychology" })),
+  ...kObjectPool.map((c) => ({ text: c, kind: "object" })),
+];
+
+export default function BottomBar({ mode }: { mode: TopMode | null }) {
   const {
     topicDirectionId,
     setTopicDirectionId,
+    topicExpandDirectionId,
+    setTopicExpandDirectionId,
     customDirections,
     addCustomDirection,
     removeCustomDirection,
@@ -97,19 +114,28 @@ export default function BottomBar() {
   } = useIdea();
   const [axis, setAxis] = useState<Axis>("direction");
 
+  if (mode === null) return null;
+
+  const isExpand = mode === "expand";
+  const currentDirection = isExpand ? topicExpandDirectionId : topicDirectionId;
+  const onChangeDirection = isExpand
+    ? setTopicExpandDirectionId
+    : setTopicDirectionId;
+
   return (
     <div className="mx-auto flex w-full flex-col gap-2 px-3 md:max-w-[560px] md:px-0">
-      {/* Row 1: current axis's chips (direction / lens) OR chip-panel opener */}
-      <div className="min-h-[2.75rem] overflow-x-auto">
+      {/* Row 1: current axis's chips */}
+      <div className="min-h-[2.5rem]">
         {axis === "direction" && (
           <DirectionChipRow
-            axis="decompose"
-            currentDirection={topicDirectionId}
+            axis={isExpand ? "expand" : "decompose"}
+            currentDirection={currentDirection}
             customDirections={customDirections}
-            onChangeDirection={setTopicDirectionId}
+            onChangeDirection={onChangeDirection}
             addCustomDirection={addCustomDirection}
             removeCustomDirection={removeCustomDirection}
             hideLabel
+            singleLine
           />
         )}
         {axis === "lens" && (
@@ -117,23 +143,37 @@ export default function BottomBar() {
             currentLens={selectedLens}
             onChangeLens={setSelectedLens}
             hideLabel
+            singleLine
           />
         )}
         {axis === "chip" && (
-          <div className="flex items-center gap-2 py-1">
+          <div className="flex gap-1 overflow-x-auto whitespace-nowrap">
+            {CHIP_POOL.map((c) => (
+              <button
+                key={c.text}
+                type="button"
+                onClick={() => {
+                  // Step 1: chip selection on the home topic shell just
+                  // opens the full chip panel. Step 4 will wire a real
+                  // "stage this chip" action into the topic flow.
+                  setChipPanelFullScreen(true);
+                  setChipPanelOpen(true);
+                }}
+                className="shrink-0 rounded-full bg-black px-5 py-2 text-[14px] text-text-muted whitespace-nowrap transition-colors hover:bg-white/[0.1] hover:text-text-primary md:px-3 md:py-1 md:text-[11px]"
+              >
+                {c.text}
+              </button>
+            ))}
             <button
               type="button"
               onClick={() => {
                 setChipPanelFullScreen(true);
                 setChipPanelOpen(true);
               }}
-              className="rounded-full bg-white/[0.08] px-4 py-2 text-[12px] text-text-primary hover:bg-white/[0.16]"
+              className="shrink-0 rounded-full bg-white/[0.04] px-5 py-2 text-[14px] text-text-muted hover:bg-white/[0.1] hover:text-text-primary md:px-3 md:py-1 md:text-[11px]"
             >
-              칩 라이브러리 열기
+              모두 보기
             </button>
-            <span className="text-[11px] text-text-muted">
-              (주제 입력 후 조합)
-            </span>
           </div>
         )}
       </div>

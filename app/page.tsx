@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import InputBar from "./components/InputBar";
-import TopBar from "./components/TopBar";
+import TopBar, { type TopMode } from "./components/TopBar";
 import BottomBar from "./components/BottomBar";
 import DecompositionTree from "./components/DecompositionTree";
 import ChipSidePanel from "./components/ChipSidePanel";
@@ -47,6 +47,9 @@ function PageInner() {
   const showChipPanel = chipPanelOpen;
   const [businessInfoOpen, setBusinessInfoOpen] = useState(false);
   const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
+  // Topic home mode — null by default so the BottomBar stays hidden until
+  // the user explicitly picks 분해 / 확장 / 증명 from the TopBar.
+  const [homeMode, setHomeMode] = useState<TopMode | null>(null);
   const inSplit = Boolean(splitMemoPageId) && inputMode === "topic";
   // Memo folder list has its own "+ 새 메모방" button for room creation,
   // so the bottom input bar is just visual noise there — hide it on
@@ -230,7 +233,9 @@ function PageInner() {
             </div>
           )}
           <main
-            className={`min-w-0 flex-1 overflow-hidden bg-black pb-safe-14 pt-safe-8 md:pb-0 md:pt-12 flex-col-reverse md:flex-col ${
+            className={`min-w-0 flex-1 overflow-hidden bg-black pt-safe-8 md:pb-0 md:pt-12 flex-col-reverse md:flex-col ${
+              isTopicHome ? "pb-safe-12" : "pb-safe-14"
+            } ${
               inSplit
                 ? activeSplitView === "topic"
                   ? "flex"
@@ -241,10 +246,14 @@ function PageInner() {
             }`}
           >
             {isTopicHome ? (
-              <div className="flex flex-1 flex-col justify-between gap-4 py-4">
-                <TopBar disableMemo />
+              <div className="flex flex-1 flex-col justify-between pt-10 pb-1">
+                <TopBar
+                  disableMemo
+                  mode={homeMode}
+                  onModeChange={setHomeMode}
+                />
                 <div className="flex-1" />
-                <BottomBar />
+                <BottomBar mode={homeMode} />
               </div>
             ) : (
               <>

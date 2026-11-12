@@ -18,6 +18,7 @@ export default function DirectionChipRow({
   collapsed = false,
   onCollapseChange,
   hideLabel = false,
+  singleLine = false,
 }: {
   // Which axis the row is driving. Expansion filters out decompose-only
   // directions and vice versa, so the user only sees chips that produce
@@ -33,6 +34,9 @@ export default function DirectionChipRow({
   // Skip the row's own "사고 방향" label — used by accordion wrappers
   // that render their own header above the chip grid.
   hideLabel?: boolean;
+  // Force the chip row onto a single horizontal scroll track instead of
+  // wrapping. Used by the global BottomBar where vertical space is tight.
+  singleLine?: boolean;
 }) {
   const [adding, setAdding] = useState(false);
   const [newLabel, setNewLabel] = useState("");
@@ -73,7 +77,13 @@ export default function DirectionChipRow({
           사고 방향
         </span>
       )}
-      <div className="flex flex-wrap gap-1">
+      <div
+        className={
+          singleLine
+            ? "flex gap-1 overflow-x-auto whitespace-nowrap"
+            : "flex flex-wrap gap-1"
+        }
+      >
         {all.map((d) => {
           const active = d.id === currentDirection;
           return (

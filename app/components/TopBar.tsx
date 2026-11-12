@@ -71,8 +71,12 @@ const MODES: { key: TopMode; label: string; icon: JSX.Element }[] = [
 
 export default function TopBar({
   disableMemo = true,
+  mode,
+  onModeChange,
 }: {
   disableMemo?: boolean;
+  mode: TopMode | null;
+  onModeChange: (m: TopMode | null) => void;
 }) {
   const {
     topicText,
@@ -82,7 +86,6 @@ export default function TopBar({
     setTopicMode,
     setPrincipleCustomContext,
   } = useIdea();
-  const [mode, setMode] = useState<TopMode>("decompose");
   // Local draft state for the tag-ified input. First Enter promotes the
   // draft into topicTag; subsequent Enters push into conditions. Submit
   // flushes everything into IdeaContext (topicText + 주제::<topic>
@@ -145,6 +148,7 @@ export default function TopBar({
     setTopicText(effectiveTopic);
     const pk = `주제::${effectiveTopic}`;
     setPrincipleCustomContext(pk, effectiveConditions.join("\n"));
+    // Default to explore (decompose/expand) when no mode is picked.
     setTopicMode(mode === "verify" ? "verify" : "explore");
     void runDecompose();
     inputRef.current?.blur();
@@ -282,7 +286,12 @@ export default function TopBar({
               key={m.key}
               type="button"
               disabled={disabled}
-              onClick={() => !disabled && setMode(m.key)}
+              onClick={() => {
+                if (disabled) return;
+                // Click the already-active mode to deselect; this keeps
+                // the "nothing selected by default" story intact.
+                onModeChange(active ? null : m.key);
+              }}
               className={`flex flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[11px] transition-colors ${
                 active
                   ? "bg-white/[0.12] text-text-primary"
