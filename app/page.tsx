@@ -70,15 +70,10 @@ function PageInner() {
     inputMode === "topic" &&
     (Boolean(pendingTopic) || Boolean(decomposition) || inTopicPage);
   const hideInputBar = hideInputBarInMemoList || hideInputBarInTopic;
-  // Topic home = empty-state screen on the 사고확장 tab. This is where the
-  // new TopBar + BottomBar shell takes over from the legacy centered
-  // InputBar. Pending/decomposition/opened-page keep the legacy layout
-  // until step 2 of the refactor absorbs them.
-  const isTopicHome =
-    inputMode === "topic" &&
-    !pendingTopic &&
-    !decomposition &&
-    !inTopicPage;
+  // Any topic view (home / pending / decomposition / opened page) renders
+  // the global TopBar + BottomBar shell. Memo mode keeps the legacy
+  // InputBar bottom dock.
+  const showTopicShell = inputMode === "topic";
   const canGoBack = inputMode === "memo" && !memoListMode;
   // Bottom-sheet variant only applies to the "verify auto-opened the
   // chip panel while the user is on a 사고확장 topic" flow. A manual
@@ -233,8 +228,10 @@ function PageInner() {
             </div>
           )}
           <main
-            className={`min-w-0 flex-1 overflow-hidden bg-black pt-safe-8 md:pb-0 md:pt-12 flex-col-reverse md:flex-col ${
-              isTopicHome ? "pb-safe-12" : "pb-safe-14"
+            className={`min-w-0 flex-1 overflow-hidden bg-black pt-safe-8 md:pb-0 md:pt-12 ${
+              showTopicShell
+                ? "flex-col pb-safe-12"
+                : "flex-col-reverse md:flex-col pb-safe-14"
             } ${
               inSplit
                 ? activeSplitView === "topic"
@@ -245,16 +242,22 @@ function PageInner() {
                   : "flex"
             }`}
           >
-            {isTopicHome ? (
-              <div className="flex flex-1 flex-col justify-between pt-10 pb-1">
-                <TopBar
-                  disableMemo
-                  mode={homeMode}
-                  onModeChange={setHomeMode}
-                />
-                <div className="flex-1" />
-                <BottomBar mode={homeMode} />
-              </div>
+            {showTopicShell ? (
+              <>
+                <div className="shrink-0 pt-10 pb-2">
+                  <TopBar
+                    disableMemo
+                    mode={homeMode}
+                    onModeChange={setHomeMode}
+                  />
+                </div>
+                <div className="flex-1 min-h-0 overflow-auto">
+                  <DecompositionTree />
+                </div>
+                <div className="shrink-0 pb-1">
+                  <BottomBar mode={homeMode} />
+                </div>
+              </>
             ) : (
               <>
                 {!hideInputBar && <InputBar />}

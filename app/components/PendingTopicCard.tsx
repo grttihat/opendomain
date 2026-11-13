@@ -317,128 +317,13 @@ export default function PendingTopicCard() {
 
   return (
     <div className="mt-6 flex w-max items-start gap-4">
-    <div
-      ref={cardRef}
-      className="decomp-controller flex w-[calc(100vw-1.5rem)] max-w-full shrink-0 snap-center flex-col gap-3 md:w-[560px]"
-    >
-      {/* 입력바 재구성 — 편집 가능한 주제 텍스트가 아니라 "주제 태그 +
-          추가 조건 태그들 + 조건 입력" 조합. 입력창은 추가조건(=
-          principleCustomContext) 입력 전용으로 재사용.
-          Enter → 조건 추가 (텍스트 있을 때) / Submit 버튼 → 현재 모드
-          액션(분해/확장/증명). 조건 태그는 각각 X로 제거. */}
-      <ConditionInputBar
-        tagText={pendingTopic}
-        pk={pk}
-        submitting={topicSubmitting}
-        disabled={!pendingTopic?.trim()}
-        existingContext={customContext}
-        setPrincipleCustomContext={setPrincipleCustomContext}
-        onSubmit={() => void handleTopicSubmit()}
-      />
+      {/* 주제 pill + 모드탭 + 사고방향/렌즈/칩 컨트롤러는 글로벌
+          TopBar/BottomBar가 담당. PendingTopicCard는 이제 verify
+          결과 / 조합 결과 / 원리 확장 블록 같은 "결과 보드"만 렌더한다. */}
       <SessionTimelineModal
         open={timelineOpen}
         onClose={() => setTimelineOpen(false)}
       />
-
-      {/* 외부 보더 — 탭(인너 보더) + 아코디언 포함. 부모 facet은
-          PendingTopicCard에는 없음 (topic 자체가 root). */}
-      <div className="flex flex-col gap-3 rounded-xl border border-white/[0.14] bg-white/[0.04] p-3">
-        {/* 분해/확장/증명 탭 — 백컬러 블랙, 아웃라인 보더 없음 */}
-        <div className="rounded-xl bg-black p-1.5">
-          <div className="flex items-stretch gap-1.5">
-            {(["explore", "expand", "verify"] as const).map((m) => {
-              const active = mode === m;
-              const label =
-                m === "explore" ? "분해" : m === "expand" ? "확장" : "증명";
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setPrincipleControllerMode(pk, m)}
-                  className={`flex-1 whitespace-nowrap rounded-lg px-6 py-2 text-center text-[14px] font-medium transition-colors md:px-5 md:py-1.5 md:text-[13px] ${
-                    active
-                      ? "bg-white text-black"
-                      : "text-text-secondary hover:bg-white/[0.08] hover:text-text-primary"
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {mode === "explore" || mode === "expand" ? (
-          <>
-            <ControllerAccordion
-              label="사고 방향"
-              tag={
-                [...kBuiltinDirections, ...customDirections].find(
-                  (d) =>
-                    d.id ===
-                    (mode === "expand" ? topicExpandDirectionId : topicDirectionId),
-                )?.label ?? (mode === "expand" ? "역사 평행" : "원리")
-              }
-              open={openCategory === "direction"}
-              onToggle={() => toggleCategory("direction")}
-            >
-              <DirectionChipRow
-                axis={mode === "expand" ? "expand" : "decompose"}
-                currentDirection={
-                  mode === "expand" ? topicExpandDirectionId : topicDirectionId
-                }
-                customDirections={customDirections}
-                onChangeDirection={
-                  mode === "expand"
-                    ? setTopicExpandDirectionId
-                    : setTopicDirectionId
-                }
-                addCustomDirection={addCustomDirection}
-                removeCustomDirection={removeCustomDirection}
-                hideLabel
-              />
-            </ControllerAccordion>
-            <ControllerAccordion
-              label="렌즈"
-              tag={selectedLens ? lensLabel(selectedLens) : "없음"}
-              open={openCategory === "lens"}
-              onToggle={() => toggleCategory("lens")}
-            >
-              <FacetLensRow
-                currentLens={selectedLens}
-                onChangeLens={setSelectedLens}
-                hideLabel
-              />
-            </ControllerAccordion>
-            <ControllerAccordion
-              label="실행 결과"
-              tag={topicResultType ?? "없음"}
-              open={openCategory === "result"}
-              onToggle={() => toggleCategory("result")}
-            >
-              <ResultTypeChipRow
-                value={topicResultType}
-                onChange={setTopicResultType}
-                hideLabel
-              />
-            </ControllerAccordion>
-          </>
-        ) : (
-          <ControllerAccordion
-            label="렌즈"
-            tag={vLens ? lensLabel(vLens) : "없음"}
-            open={openCategory === "verify-lens"}
-            onToggle={() => toggleCategory("verify-lens")}
-          >
-            <FacetLensRow
-              currentLens={vLens}
-              onChangeLens={(l) => setPrincipleVerifyLens(pk, l)}
-              hideLabel
-            />
-          </ControllerAccordion>
-        )}
-      </div>
-    </div>
 
     {/* Verify results render to the RIGHT of the pending card as a
         separate column, so the user scrolls horizontally to the newly

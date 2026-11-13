@@ -514,37 +514,15 @@ export default function DecompositionTree() {
   }
 
   if (pendingTopic && !decomposition) {
+    // 주제 pill·모드·축 컨트롤러는 글로벌 TopBar/BottomBar가 담당하고,
+    // "분해 시작" 액션도 TopBar 제출 버튼이 흡수했으므로 모바일 FAB은
+    // 이 단계에서 렌더하지 않는다. PendingTopicCard는 verify 결과 등
+    // 결과 보드만 보여준다.
     return (
       <div className="flex flex-1 flex-col overflow-hidden bg-black">
         <div className="flex-1 overflow-auto px-6 py-6">
           <PendingTopicCard />
         </div>
-        <MobileDecomposeFab
-          multiMode={false}
-          controlsExpanded={false}
-          selectedPrinciple={null}
-          facetDirection={{}}
-          facetLens={{}}
-          facetResultType={{}}
-          principleDirection={{}}
-          principleLens={{}}
-          principleResultType={{}}
-          principleControllerMode={principleControllerMode}
-          principleVerifyLens={principleVerifyLens}
-          multiAxisDirection={DEFAULT_DIRECTION_ID}
-          multiAxisLens={null}
-          multiAxisResultType={null}
-          pendingTopic={pendingTopic}
-          topicPurposeId={topicPurposeId}
-          selectedLens={selectedLens}
-          topicDirectionId={topicDirectionId}
-          topicResultType={topicResultType}
-          commitPending={commitPending}
-          runDecomposeFacet={runDecomposeFacet}
-          runDecomposeSubFacet={runDecomposeSubFacet}
-          runDecomposeMultiAxis={runDecomposeMultiAxis}
-          runVerifyFacet={runVerifyFacet}
-        />
       </div>
     );
   }
