@@ -24,11 +24,6 @@ import {
 } from "@/lib/directions";
 import { lensLabel, type SelectedLens } from "@/lib/lenses";
 import type { BigCategory } from "@/lib/constants";
-import DirectionChipRow from "./DirectionChipRow";
-import FacetLensRow from "./FacetLensRow";
-import ResultTypeChipRow from "./ResultTypeChipRow";
-import ControllerAccordion from "./ControllerAccordion";
-import ConditionInputBar from "./ConditionInputBar";
 import ParentFacetTag from "./ParentFacetTag";
 import SessionTimelineModal from "./SessionTimelineModal";
 import {
@@ -748,11 +743,7 @@ function MobileDecomposeFab({
   runDecomposeMultiAxis,
   runVerifyFacet,
 }: MobileDecomposeFabProps) {
-  const {
-    setChipPanelOpen,
-    principleCustomContext,
-    setPrincipleCustomContext,
-  } = useIdea();
+  const { setChipPanelOpen } = useIdea();
   const [controllerVisible, setControllerVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   useEffect(() => {
@@ -912,8 +903,7 @@ function MobileDecomposeFab({
               + 축 조합
             </button>
           )}
-          {/* FAB의 + 입력 버튼은 전부 제거됨 — 조건 입력은 각 컨트롤러 상단의
-              ConditionInputBar로 통합됨 (pending / axis / facet 모두 공통). */}
+          {/* FAB의 + 입력 버튼은 전부 제거됨 — 조건 입력은 글로벌 TopBar가 담당. */}
           <button
             onClick={handleClick}
             disabled={loading}
@@ -1161,11 +1151,6 @@ function MergedAxisBranch({
   onDecompose,
   onCollapse,
 }: MergedAxisBranchProps) {
-  const [openCategory, setOpenCategory] = useState<
-    "direction" | "lens" | "result" | null
-  >("direction");
-  const toggleCategory = (cat: "direction" | "lens" | "result") =>
-    setOpenCategory((prev) => (prev === cat ? null : cat));
   const entries = Object.entries(results);
   const connectorRef = useRef<HTMLDivElement>(null);
   const controlRef = useRef<HTMLDivElement>(null);
@@ -1348,14 +1333,6 @@ function AxisRow({
   onChangeResultType,
 }: AxisRowProps) {
   const subEntries = subFacets ? Object.entries(subFacets) : [];
-  // Accordion state for the chip categories; only one open at a time,
-  // 사고 방향 opens by default.
-  const [openCategory, setOpenCategory] = useState<
-    "direction" | "lens" | "result" | "verify-lens" | null
-  >("direction");
-  const toggleCategory = (
-    cat: "direction" | "lens" | "result" | "verify-lens",
-  ) => setOpenCategory((prev) => (prev === cat ? null : cat));
   const {
     addMemo,
     setChipPanelOpen,
@@ -1366,21 +1343,12 @@ function AxisRow({
     focusedCombinedIdeaId,
     setFocusedCombinedIdeaId,
     selectedPrinciple,
-    principleControllerMode,
-    setPrincipleControllerMode,
-    principleVerifyLens,
-    setPrincipleVerifyLens,
-    principleCustomContext,
-    setPrincipleCustomContext,
     verifyDerived,
     verifyDerivedStatus,
     runVerifyFacet,
     decomposition,
   } = useIdea();
   const axisPk = principleKey(axis, "축 전체");
-  const axisMode = principleControllerMode[axisPk] ?? "explore";
-  const axisCustomContext = principleCustomContext[axisPk] ?? "";
-  const axisVerifyLens = principleVerifyLens[axisPk] ?? null;
   const [showFullFacet, setShowFullFacet] = useState(false);
   const fullFacetText = `${axis} — ${principle}`;
   // Ancestor + current rendered as "제목 — 내용..." one-liners (line-clamp-1).
@@ -1405,7 +1373,6 @@ function AxisRow({
   };
   const journeyEntries: AncestorEntry[] = [...ancestorEntries, currentEntry];
   const axisVerifyGens = verifyDerived[axisPk] ?? [];
-  const [axisVerifyLoading, setAxisVerifyLoading] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const controlsRef = useRef<HTMLDivElement>(null);
   const generationsRef = useRef<HTMLDivElement>(null);
@@ -2050,12 +2017,6 @@ export function FacetNode({
     markPrincipleCollapsed,
     blockerPrinciples,
     toggleBlockerPrinciple,
-    principleControllerMode,
-    setPrincipleControllerMode,
-    principleVerifyLens,
-    setPrincipleVerifyLens,
-    principleCustomContext,
-    setPrincipleCustomContext,
     verifyDerived,
     verifyDerivedStatus,
     runVerifyFacet,
@@ -2073,12 +2034,7 @@ export function FacetNode({
 
   const pk = principleKey(rootAxis, pathName);
   const isBlocker = blockerPrinciples.has(pk);
-  const mode = principleControllerMode[pk] ?? "explore";
-  const customContext = principleCustomContext[pk] ?? "";
-  const currentVerifyLens =
-    principleVerifyLens[pk] ?? null;
   const verifyGens = verifyDerived[pk] ?? [];
-  const [verifyLoading, setVerifyLoading] = useState(false);
   const isSel =
     selectedPrinciple?.axis === rootAxis && selectedPrinciple?.name === pathName;
   const derived = subFacetDerived[pk] ?? [];
@@ -2092,12 +2048,6 @@ export function FacetNode({
   );
   const showOwnCombineLoading =
     isSel && combineStatus === "loading" && ownCombinedIdeas.length === 0;
-  const [openCategory, setOpenCategory] = useState<
-    "direction" | "lens" | "result" | "verify-lens" | null
-  >("direction");
-  const toggleCategory = (
-    cat: "direction" | "lens" | "result" | "verify-lens",
-  ) => setOpenCategory((prev) => (prev === cat ? null : cat));
   const [subFacetLoading, setSubFacetLoading] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [showFullFacet, setShowFullFacet] = useState(false);
