@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import InputBar from "./components/InputBar";
 import TopBar, { type TopMode } from "./components/TopBar";
 import BottomBar from "./components/BottomBar";
+import DebugErrorBoundary from "./components/DebugErrorBoundary";
 import DecompositionTree from "./components/DecompositionTree";
 import ChipSidePanel from "./components/ChipSidePanel";
 import SettingsModal from "./components/SettingsModal";
@@ -361,8 +362,10 @@ function PageInner() {
 
 export default function Page() {
   return (
-    <IdeaProvider>
-      <PageInner />
-    </IdeaProvider>
+    <DebugErrorBoundary>
+      <IdeaProvider>
+        <PageInner />
+      </IdeaProvider>
+    </DebugErrorBoundary>
   );
 }
