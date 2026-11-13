@@ -1429,59 +1429,59 @@ function AxisRow({
 
   return (
     <div className="flex items-start gap-3">
-      <div
-        ref={(el) => registerCardRef?.(axis, el)}
-        className="group relative w-[max(24vw,260px)] max-md:w-[calc(100vw-1.5rem)] shrink-0 snap-center"
-      >
-        <button
-          onClick={onToggleAxis}
-          className={`w-full rounded-lg px-3 py-3 text-left transition-colors ${
-            active
-              ? "bg-white/[0.14]"
-              : "bg-white/[0.08] hover:bg-white/[0.11]"
-          }`}
-        >
-          <div className="text-[15px] font-semibold text-text-primary md:text-[12px]">
-            {axis}
-          </div>
-          <div className="mt-1 text-[13px] leading-5 text-text-secondary md:text-[11px] md:leading-4">
-            {principle}
-          </div>
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            addMemo(`${axis} — ${principle}`);
-          }}
-          title="이 축을 메모로 보내기"
-          className="absolute right-1 top-1 rounded bg-white/[0.08] px-1.5 py-0.5 text-[9px] text-text-secondary opacity-0 transition-opacity hover:bg-white/[0.18] hover:text-text-primary group-hover:opacity-100 focus:opacity-100"
-        >
-          → 메모
-        </button>
-      </div>
-
-      {/* 우측 컨트롤러(조건 입력 + 모드탭 + 아코디언)는 전부 글로벌
-          TopBar/BottomBar가 담당. AncestorStack(부모 facet 체인 + 전체
-          여정 뷰 트리거)만 슬림 info 스트립으로 유지한다. */}
-      {showControls && ancestorEntries.length > 0 && (
-        <div className="shrink-0 pt-2">
-          <AncestorStack
-            ancestors={ancestorEntries}
-            current={currentEntry}
-            onClick={() => setShowFullFacet(true)}
-          />
-          <SessionTimelineModal
-            open={timelineOpen}
-            onClose={() => setTimelineOpen(false)}
-          />
-          {showFullFacet && (
-            <FullFacetJourneyView
-              journey={journeyEntries}
-              onClose={() => setShowFullFacet(false)}
+      <div className="flex shrink-0 snap-center flex-col gap-2 w-[max(24vw,260px)] max-md:w-[calc(100vw-1.5rem)]">
+        {/* AncestorStack(부모 facet 체인 + 전체 여정 뷰 트리거) — 카드
+            위에 슬림 info 스트립으로 배치. 클릭 시 FullFacetJourneyView. */}
+        {showControls && ancestorEntries.length > 0 && (
+          <div className="shrink-0">
+            <AncestorStack
+              ancestors={ancestorEntries}
+              current={currentEntry}
+              onClick={() => setShowFullFacet(true)}
             />
-          )}
+            <SessionTimelineModal
+              open={timelineOpen}
+              onClose={() => setTimelineOpen(false)}
+            />
+            {showFullFacet && (
+              <FullFacetJourneyView
+                journey={journeyEntries}
+                onClose={() => setShowFullFacet(false)}
+              />
+            )}
+          </div>
+        )}
+        <div
+          ref={(el) => registerCardRef?.(axis, el)}
+          className="group relative w-full"
+        >
+          <button
+            onClick={onToggleAxis}
+            className={`w-full rounded-lg px-3 py-3 text-left transition-colors ${
+              active
+                ? "bg-white/[0.14]"
+                : "bg-white/[0.08] hover:bg-white/[0.11]"
+            }`}
+          >
+            <div className="text-[15px] font-semibold text-text-primary md:text-[12px]">
+              {axis}
+            </div>
+            <div className="mt-1 text-[13px] leading-5 text-text-secondary md:text-[11px] md:leading-4">
+              {principle}
+            </div>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              addMemo(`${axis} — ${principle}`);
+            }}
+            title="이 축을 메모로 보내기"
+            className="absolute right-1 top-1 rounded bg-white/[0.08] px-1.5 py-0.5 text-[9px] text-text-secondary opacity-0 transition-opacity hover:bg-white/[0.18] hover:text-text-primary group-hover:opacity-100 focus:opacity-100"
+          >
+            → 메모
+          </button>
         </div>
-      )}
+      </div>
 
       {showControls && generations && generations.length > 0 && (
         <div
@@ -2159,98 +2159,100 @@ export function FacetNode({
 
   return (
     <div className="flex items-start gap-3">
-      <div className="group relative w-[max(24vw,260px)] max-md:w-[calc(100vw-1.5rem)] shrink-0 snap-center">
-        <button
-          onClick={handleSelect}
-          className={`w-full rounded-md px-3 py-2 text-left transition-colors ${
-            isBlocker
-              ? "ring-2 ring-amber-400/70 ring-offset-2 ring-offset-black"
-              : ""
-          } ${
-            isSel
-              ? "bg-white text-black"
-              : isBlocker
-                ? "bg-amber-500/15 hover:bg-amber-500/25"
-                : "bg-white/[0.08] hover:bg-white/[0.11]"
-          }`}
-        >
-          <div
-            className={`text-[14px] font-semibold md:text-[11px] ${
-              isSel
-                ? "text-black"
-                : isBlocker
-                  ? "text-amber-100"
-                  : "text-text-primary"
-            }`}
-          >
-            {facetName}
-          </div>
-          <div
-            className={`text-[13px] leading-5 md:text-[11px] md:leading-4 ${
-              isSel
-                ? "text-black/70"
-                : isBlocker
-                  ? "text-amber-100/80"
-                  : "text-text-secondary"
-            }`}
-          >
-            {facetText}
-          </div>
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleBlockerPrinciple(pk);
-          }}
-          title={
-            isBlocker
-              ? "블로커 해제 (실현을 막는 원리 표시 해제)"
-              : "이 원리가 실현의 블로커인지 표시"
-          }
-          className={`absolute left-1 top-1 rounded px-1.5 py-0.5 text-[9px] transition-opacity ${
-            isBlocker
-              ? "bg-amber-500/40 text-amber-50"
-              : "bg-white/[0.08] text-text-secondary opacity-0 hover:bg-white/[0.18] hover:text-text-primary group-hover:opacity-100 focus:opacity-100"
-          }`}
-        >
-          ⚠
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            addMemo(`${facetName} — ${facetText}`);
-          }}
-          title="이 원리를 메모로 보내기"
-          className={`absolute right-1 top-1 rounded px-1.5 py-0.5 text-[9px] opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 ${
-            isSel
-              ? "bg-black/20 text-black/70 hover:bg-black/30"
-              : "bg-white/[0.08] text-text-secondary hover:bg-white/[0.18] hover:text-text-primary"
-          }`}
-        >
-          → 메모
-        </button>
-      </div>
-      {/* 우측 컨트롤러 전부 글로벌 TopBar/BottomBar로 이관. 여기엔 부모
-          facet 체인 info(AncestorStack + 전체 여정 뷰 트리거)만 유지. */}
-      {expanded && ancestorEntries.length > 0 && (
-        <div className="shrink-0 pt-2">
-          <AncestorStack
-            ancestors={ancestorEntries}
-            current={currentEntry}
-            onClick={() => setShowFullFacet(true)}
-          />
-          <SessionTimelineModal
-            open={timelineOpen}
-            onClose={() => setTimelineOpen(false)}
-          />
-          {showFullFacet && (
-            <FullFacetJourneyView
-              journey={journeyEntries}
-              onClose={() => setShowFullFacet(false)}
+      <div className="flex shrink-0 snap-center flex-col gap-2 w-[max(24vw,260px)] max-md:w-[calc(100vw-1.5rem)]">
+        {/* AncestorStack(부모 facet 체인 + 전체 여정 뷰 트리거) — 카드
+            위에 슬림 info 스트립으로 배치. 클릭 시 FullFacetJourneyView. */}
+        {expanded && ancestorEntries.length > 0 && (
+          <div className="shrink-0">
+            <AncestorStack
+              ancestors={ancestorEntries}
+              current={currentEntry}
+              onClick={() => setShowFullFacet(true)}
             />
-          )}
+            <SessionTimelineModal
+              open={timelineOpen}
+              onClose={() => setTimelineOpen(false)}
+            />
+            {showFullFacet && (
+              <FullFacetJourneyView
+                journey={journeyEntries}
+                onClose={() => setShowFullFacet(false)}
+              />
+            )}
+          </div>
+        )}
+        <div className="group relative w-full">
+          <button
+            onClick={handleSelect}
+            className={`w-full rounded-md px-3 py-2 text-left transition-colors ${
+              isBlocker
+                ? "ring-2 ring-amber-400/70 ring-offset-2 ring-offset-black"
+                : ""
+            } ${
+              isSel
+                ? "bg-white text-black"
+                : isBlocker
+                  ? "bg-amber-500/15 hover:bg-amber-500/25"
+                  : "bg-white/[0.08] hover:bg-white/[0.11]"
+            }`}
+          >
+            <div
+              className={`text-[14px] font-semibold md:text-[11px] ${
+                isSel
+                  ? "text-black"
+                  : isBlocker
+                    ? "text-amber-100"
+                    : "text-text-primary"
+              }`}
+            >
+              {facetName}
+            </div>
+            <div
+              className={`text-[13px] leading-5 md:text-[11px] md:leading-4 ${
+                isSel
+                  ? "text-black/70"
+                  : isBlocker
+                    ? "text-amber-100/80"
+                    : "text-text-secondary"
+              }`}
+            >
+              {facetText}
+            </div>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleBlockerPrinciple(pk);
+            }}
+            title={
+              isBlocker
+                ? "블로커 해제 (실현을 막는 원리 표시 해제)"
+                : "이 원리가 실현의 블로커인지 표시"
+            }
+            className={`absolute left-1 top-1 rounded px-1.5 py-0.5 text-[9px] transition-opacity ${
+              isBlocker
+                ? "bg-amber-500/40 text-amber-50"
+                : "bg-white/[0.08] text-text-secondary opacity-0 hover:bg-white/[0.18] hover:text-text-primary group-hover:opacity-100 focus:opacity-100"
+            }`}
+          >
+            ⚠
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              addMemo(`${facetName} — ${facetText}`);
+            }}
+            title="이 원리를 메모로 보내기"
+            className={`absolute right-1 top-1 rounded px-1.5 py-0.5 text-[9px] opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 ${
+              isSel
+                ? "bg-black/20 text-black/70 hover:bg-black/30"
+                : "bg-white/[0.08] text-text-secondary hover:bg-white/[0.18] hover:text-text-primary"
+            }`}
+          >
+            → 메모
+          </button>
         </div>
-      )}
+      </div>
 
       {expanded && derived.length > 0 && (
         <div

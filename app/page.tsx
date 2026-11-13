@@ -43,6 +43,8 @@ function PageInner() {
     currentPageId,
     chipPanelFullScreen,
     setChipPanelFullScreen,
+    selectedPrinciple,
+    selectedAxes,
   } = useIdea();
   const isFreeTier = Boolean(userGeminiKey) && useUserKey;
   const showChipPanel = chipPanelOpen;
@@ -75,6 +77,18 @@ function PageInner() {
   // the global TopBar + BottomBar shell. Memo mode keeps the legacy
   // InputBar bottom dock.
   const showTopicShell = inputMode === "topic";
+  // TopBar/BottomBar 가시성 — 원리나 축을 고르지 않은 상태의 decomposition
+  // 뷰에서는 상·하단 컨트롤러를 숨겨 트리 자체에 집중하게 하고, facet 축/
+  // 원리를 클릭하는 순간 위아래에서 슬라이드-인시킨다. 홈(주제 미입력)은
+  // TopBar가 "주제 입력" 창 역할도 하므로 그대로 노출.
+  const hasFacetFocus =
+    selectedPrinciple !== null || selectedAxes.size > 0;
+  const isFreshTopicHome =
+    inputMode === "topic" &&
+    !pendingTopic &&
+    !decomposition &&
+    !inTopicPage;
+  const showTopicControllers = isFreshTopicHome || hasFacetFocus;
   const canGoBack = inputMode === "memo" && !memoListMode;
   // Bottom-sheet variant only applies to the "verify auto-opened the
   // chip panel while the user is on a 사고확장 topic" flow. A manual
@@ -245,14 +259,30 @@ function PageInner() {
           >
             {showTopicShell ? (
               <>
-                <div className="shrink-0 pt-10 pb-2">
-                  <TopBar mode={homeMode} onModeChange={setHomeMode} />
+                <div
+                  className={`shrink-0 overflow-hidden transition-all duration-200 ease-out ${
+                    showTopicControllers
+                      ? "max-h-[20rem] translate-y-0 opacity-100"
+                      : "max-h-0 -translate-y-2 opacity-0 pointer-events-none"
+                  }`}
+                >
+                  <div className="pt-10 pb-2">
+                    <TopBar mode={homeMode} onModeChange={setHomeMode} />
+                  </div>
                 </div>
                 <div className="flex-1 min-h-0 overflow-auto">
                   <DecompositionTree />
                 </div>
-                <div className="shrink-0 pb-1">
-                  <BottomBar mode={homeMode} />
+                <div
+                  className={`shrink-0 overflow-hidden transition-all duration-200 ease-out ${
+                    showTopicControllers
+                      ? "max-h-[20rem] translate-y-0 opacity-100"
+                      : "max-h-0 translate-y-2 opacity-0 pointer-events-none"
+                  }`}
+                >
+                  <div className="pb-1">
+                    <BottomBar mode={homeMode} />
+                  </div>
                 </div>
               </>
             ) : (
