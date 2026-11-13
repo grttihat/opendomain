@@ -3,14 +3,8 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { useIdea, principleKey } from "../state/IdeaContext";
 import { FacetNode, CombinedIdeasBoardSection } from "./DecompositionTree";
-import DirectionChipRow from "./DirectionChipRow";
-import FacetLensRow from "./FacetLensRow";
-import ResultTypeChipRow from "./ResultTypeChipRow";
-import ControllerAccordion from "./ControllerAccordion";
-import ConditionInputBar from "./ConditionInputBar";
 import ParentFacetTag from "./ParentFacetTag";
 import SessionTimelineModal from "./SessionTimelineModal";
-import { kBuiltinDirections } from "@/lib/directions";
 import {
   feasibilityLabel,
   feasibilityPalette,
@@ -21,25 +15,10 @@ import { apiPath } from "@/lib/apiPath";
 export default function PendingTopicCard() {
   const {
     pendingTopic,
-    commitPending,
     addMemo,
-    topicPurposeId,
-    topicDirectionId,
-    setTopicDirectionId,
-    topicExpandDirectionId,
-    setTopicExpandDirectionId,
-    topicResultType,
-    setTopicResultType,
-    customDirections,
-    addCustomDirection,
-    removeCustomDirection,
-    selectedLens,
-    setSelectedLens,
     status,
     principleControllerMode,
-    setPrincipleControllerMode,
     principleVerifyLens,
-    setPrincipleVerifyLens,
     principleCustomContext,
     setPrincipleCustomContext,
     verifyDerived,
@@ -62,18 +41,8 @@ export default function PendingTopicCard() {
     expandedPrinciples,
     markPrincipleExpanded,
   } = useIdea();
-  // Accordion: only one chip category open at a time; direction opens
-  // by default. Per spec, clicking a category header toggles that one
-  // and closes the others.
-  const [openCategory, setOpenCategory] = useState<
-    "direction" | "lens" | "result" | "verify-lens" | null
-  >("direction");
-  const toggleCategory = (
-    cat: "direction" | "lens" | "result" | "verify-lens",
-  ) => setOpenCategory((prev) => (prev === cat ? null : cat));
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
-  const [topicSubmitting, setTopicSubmitting] = useState(false);
   // Verify 완료 후 각 요건에 recommend-chips 를 lazy fetch. 첫 번째를
   // (도메인·해결책) 셀 기본값으로 쓰고, 전체 리스트는 사용자가 셀을 눌렀을
   // 때 inline 드롭다운에 노출. 키 = `${genKey}::${reqId}`.
@@ -118,40 +87,6 @@ export default function PendingTopicCard() {
   const prevGenCountRef = useRef(0);
   const combineColRef = useRef<HTMLDivElement>(null);
   const prevCombineCountRef = useRef(0);
-  const cardRef = useRef<HTMLDivElement>(null);
-
-  // Center the card in the horizontal scroller on first mount. Browser's
-  // native scroll-snap doesn't always snap new content on initial render,
-  // so we scroll explicitly to avoid the "right-shifted" landing bug.
-  useLayoutEffect(() => {
-    const el = cardRef.current;
-    if (!el) return;
-    const raf = requestAnimationFrame(() => {
-      let scroller: HTMLElement | null = el.parentElement;
-      while (scroller) {
-        const s = getComputedStyle(scroller);
-        if (
-          s.overflowX === "auto" ||
-          s.overflowX === "scroll" ||
-          s.overflow === "auto" ||
-          s.overflow === "scroll"
-        )
-          break;
-        scroller = scroller.parentElement;
-      }
-      if (!scroller) return;
-      const cRect = el.getBoundingClientRect();
-      const sRect = scroller.getBoundingClientRect();
-      const desiredLeft = sRect.left + (sRect.width - cRect.width) / 2;
-      const deltaX = cRect.left - desiredLeft;
-      if (Math.abs(deltaX) < 2) return;
-      scroller.scrollTo({
-        left: scroller.scrollLeft + deltaX,
-        behavior: "smooth",
-      });
-    });
-    return () => cancelAnimationFrame(raf);
-  }, []);
 
   if (!pendingTopic) return null;
 
@@ -160,27 +95,7 @@ export default function PendingTopicCard() {
   const pk = `주제::${pendingTopic}`;
   const mode = principleControllerMode[pk] ?? "explore";
   const customContext = principleCustomContext[pk] ?? "";
-  const vLens = principleVerifyLens[pk] ?? null;
   const vGens = verifyDerived[pk] ?? [];
-
-  // Mode-aware submit: Enter / 우측 arrow button → mirrors the FAB
-  // behavior for the pending-topic context (explore / expand / verify).
-  const handleTopicSubmit = async () => {
-    if (!pendingTopic?.trim() || topicSubmitting) return;
-    setTopicSubmitting(true);
-    try {
-      if (mode === "verify") {
-        await runVerifyFacet("주제", pendingTopic, pendingTopic, vLens);
-      } else {
-        await commitPending(
-          topicPurposeId,
-          mode === "expand" ? "expand" : "decompose",
-        );
-      }
-    } finally {
-      setTopicSubmitting(false);
-    }
-  };
 
   const pendingCombines = combinedIdeas.filter(
     (c) => c.topicAxis === "주제",
