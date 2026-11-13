@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { principleKey, useIdea } from "../state/IdeaContext";
 import DirectionChipRow from "./DirectionChipRow";
 import FacetLensRow from "./FacetLensRow";
@@ -11,6 +11,7 @@ import {
   chipKindLabel,
   type ChipKind,
 } from "@/lib/constants";
+import { chipSearchModeLabel, type ChipSearchMode } from "@/lib/prompts";
 import type { TopMode } from "./TopBar";
 
 type Axis = "direction" | "lens" | "chip";
@@ -100,6 +101,17 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
     setChipPanelOpen,
     setChipPanelFullScreen,
     userChips,
+    chipRecommendations,
+    chipStatus,
+    runRecommendChips,
+    chipSearchQuery,
+    setChipSearchQuery,
+    chipSearchMode,
+    setChipSearchMode,
+    chipSearchResults,
+    chipSearchStatus,
+    runChipSearch,
+    chipDecompositions,
   } = useIdea();
   const [axis, setAxis] = useState<Axis>("direction");
   const [chipSubTab, setChipSubTab] = useState<ChipSubTab>("library");
@@ -194,28 +206,174 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
         </div>
       );
     }
-    // similar / search / history — minimal placeholder + shortcut
-    const hint =
-      chipSubTab === "similar"
-        ? "원리 선택 후 유사칩이 표시됩니다"
-        : chipSubTab === "search"
-          ? "키워드·속성·메커니즘으로 칩 검색"
-          : "최근 분해한 칩 목록";
+    if (chipSubTab === "similar") {
+      if (!selectedPrinciple) {
+        return (
+          <div className="flex items-center gap-2 py-1 text-[12px] text-text-muted md:text-[11px]">
+            원리를 선택하면 유사칩이 자동 표시됩니다
+          </div>
+        );
+      }
+      const pk = principleKey(selectedPrinciple.axis, selectedPrinciple.name);
+      const recs = chipRecommendations[pk] ?? {};
+      const flat: { chipText: string; cat: string }[] = [];
+      for (const [cat, arr] of Object.entries(recs)) {
+        for (const r of arr) flat.push({ chipText: r.chipText, cat });
+      }
+      const loading = chipStatus[pk] === "loading";
+      if (flat.length === 0) {
+        return (
+          <div className="flex items-center gap-2 py-1">
+            <span className="text-[12px] text-text-muted md:text-[11px]">
+              {loading ? "유사칩 추천 중…" : "아직 추천 없음"}
+            </span>
+            {!loading && (
+              <button
+                type="button"
+                onClick={() =>
+                  void runRecommendChips(
+                    selectedPrinciple.axis,
+                    selectedPrinciple.name,
+                    selectedPrinciple.text,
+                  )
+                }
+                className="shrink-0 rounded-full bg-white/[0.08] px-3 py-1 text-[11px] text-text-primary hover:bg-white/[0.16]"
+              >
+                추천 받기
+              </button>
+            )}
+          </div>
+        );
+      }
+      return (
+        <div className="flex gap-1 overflow-x-auto whitespace-nowrap">
+          {flat.map((r, i) => (
+            <button
+              key={`${r.chipText}-${i}`}
+              type="button"
+              onClick={openFullPanel}
+              title={r.cat}
+              className={`${CHIP_BASE} ${CHIP_INACTIVE}`}
+            >
+              {r.chipText}
+            </button>
+          ))}
+        </div>
+      );
+    }
+    if (chipSubTab === "search") {
+      const searching = chipSearchStatus === "loading";
+      return (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex gap-1 overflow-x-auto whitespace-nowrap">
+            {(["keyword", "attribute", "mechanism"] as ChipSearchMode[]).map(
+              (m) => {
+                const active = chipSearchMode === m;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setChipSearchMode(m)}
+                    className={`shrink-0 rounded-full px-3 py-1 text-[11px] transition-colors ${
+                      active
+                        ? "bg-white/[0.18] text-text-primary"
+                        : "bg-white/[0.04] text-text-muted hover:bg-white/[0.1] hover:text-text-primary"
+                    }`}
+                  >
+                    {chipSearchModeLabel[m]}
+                  </button>
+                );
+              },
+            )}
+          </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (chipSearchQuery.trim()) void runChipSearch();
+            }}
+            className="flex items-center gap-1 rounded-full border border-white/15 bg-white/[0.03] px-3 py-1"
+          >
+            <input
+              value={chipSearchQuery}
+              onChange={(e) => setChipSearchQuery(e.target.value)}
+              placeholder={`${chipSearchModeLabel[chipSearchMode]}로 검색`}
+              className="min-w-0 flex-1 bg-transparent text-[13px] text-text-primary placeholder:text-text-muted focus:outline-none md:text-[12px]"
+            />
+            <button
+              type="submit"
+              disabled={searching || !chipSearchQuery.trim()}
+              aria-label="검색"
+              className="shrink-0 rounded-full p-1 text-text-secondary hover:text-text-primary disabled:opacity-30"
+            >
+              <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+                <circle cx="11" cy="11" r="6" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M20 20l-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+          </form>
+          {chipSearchResults.length > 0 && (
+            <div className="flex gap-1 overflow-x-auto whitespace-nowrap">
+              {chipSearchResults.map((r, i) => (
+                <button
+                  key={`${r}-${i}`}
+                  type="button"
+                  onClick={openFullPanel}
+                  className={`${CHIP_BASE} ${CHIP_INACTIVE}`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+    // history
+    const historyKeys = Object.keys(chipDecompositions);
+    if (historyKeys.length === 0) {
+      return (
+        <div className="flex items-center gap-2 py-1 text-[12px] text-text-muted md:text-[11px]">
+          아직 분해한 칩이 없습니다
+        </div>
+      );
+    }
     return (
-      <div className="flex items-center gap-2 py-1">
-        <span className="text-[12px] text-text-muted md:text-[11px]">
-          {hint}
-        </span>
-        <button
-          type="button"
-          onClick={openFullPanel}
-          className="shrink-0 rounded-full bg-white/[0.08] px-4 py-1.5 text-[12px] text-text-primary hover:bg-white/[0.16] md:text-[11px]"
-        >
-          전체 패널 열기
-        </button>
+      <div className="flex gap-1 overflow-x-auto whitespace-nowrap">
+        {historyKeys.map((k) => (
+          <button
+            key={k}
+            type="button"
+            onClick={openFullPanel}
+            className={`${CHIP_BASE} ${CHIP_INACTIVE}`}
+          >
+            {k}
+          </button>
+        ))}
       </div>
     );
   };
+
+  // Lazy-fetch 유사칩 when the user opens the similar tab with a focused
+  // principle and we don't have any recs cached yet.
+  useEffect(() => {
+    if (axis !== "chip" || chipSubTab !== "similar" || !selectedPrinciple) {
+      return;
+    }
+    const pk = principleKey(selectedPrinciple.axis, selectedPrinciple.name);
+    if (chipRecommendations[pk] || chipStatus[pk] === "loading") return;
+    void runRecommendChips(
+      selectedPrinciple.axis,
+      selectedPrinciple.name,
+      selectedPrinciple.text,
+    );
+  }, [
+    axis,
+    chipSubTab,
+    selectedPrinciple,
+    chipRecommendations,
+    chipStatus,
+    runRecommendChips,
+  ]);
 
   return (
     <div className="mx-auto flex w-full flex-col gap-2 px-3 md:max-w-[560px] md:px-0">
