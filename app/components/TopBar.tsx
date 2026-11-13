@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useIdea } from "../state/IdeaContext";
+import { principleKey, useIdea } from "../state/IdeaContext";
 
 export type TopMode = "decompose" | "expand" | "verify" | "memo";
 
@@ -70,11 +70,9 @@ const MODES: { key: TopMode; label: string; icon: JSX.Element }[] = [
 ];
 
 export default function TopBar({
-  disableMemo = true,
   mode,
   onModeChange,
 }: {
-  disableMemo?: boolean;
   mode: TopMode | null;
   onModeChange: (m: TopMode | null) => void;
 }) {
@@ -84,6 +82,7 @@ export default function TopBar({
     status,
     runDecompose,
     commitPending,
+    runDecomposeFacet,
     runVerifyFacet,
     setTopicMode,
     setPrincipleCustomContext,
@@ -92,12 +91,28 @@ export default function TopBar({
     decomposition,
     topicPurposeId,
     selectedLens,
+    selectedPrinciple,
+    principleLens,
+    principleVerifyLens,
+    addMemo,
   } = useIdea();
 
-  // activeTopic = whichever topic the TopBar should render as the locked
-  // pill. Null while on the empty home screen (user is still typing).
-  const activeTopic = pendingTopic ?? decomposition?.topicText ?? null;
-  const effectivePk = activeTopic ? `주제::${activeTopic}` : null;
+  // Scope hierarchy:
+  //   selectedPrinciple > pendingTopic > decomposition?.topicText
+  // When a principle is focused the TopBar flips into principle-scope —
+  // tag, condition pk, submit action, and the 메모 button all re-target.
+  const rootTopic = pendingTopic ?? decomposition?.topicText ?? null;
+  const principleScopePk = selectedPrinciple
+    ? principleKey(selectedPrinciple.axis, selectedPrinciple.name)
+    : null;
+  const activeTopic = selectedPrinciple
+    ? `[${selectedPrinciple.axis}] ${selectedPrinciple.name}`
+    : rootTopic;
+  const effectivePk = principleScopePk
+    ? principleScopePk
+    : rootTopic
+      ? `주제::${rootTopic}`
+      : null;
   const conditions = effectivePk
     ? (principleCustomContext[effectivePk] ?? "")
         .split("\n")
@@ -156,11 +171,41 @@ export default function TopBar({
 
   const submit = () => {
     if (busy) return;
+    // Memo is a save action, not a decompose action. Handle it inline
+    // and bail before the decompose/verify paths run.
+    if (mode === "memo") {
+      if (!activeTopic) return;
+      const memoText = selectedPrinciple
+        ? `[${selectedPrinciple.axis}] ${selectedPrinciple.name}\n${selectedPrinciple.text}`
+        : activeTopic;
+      addMemo(memoText);
+      // Deselect the memo mode so the user has a clear "saved" moment
+      // rather than an ambiguous locked state.
+      onModeChange(null);
+      inputRef.current?.blur();
+      return;
+    }
+    // Principle scope: run the current mode's action against the selected
+    // principle (not the root topic). Skip the home-stage flow entirely.
+    if (selectedPrinciple) {
+      const sp = selectedPrinciple;
+      if (mode === "verify") {
+        const lens = principleVerifyLens[principleScopePk!] ?? selectedLens;
+        void runVerifyFacet(sp.axis, sp.name, sp.text, lens);
+      } else {
+        // Expand on principle isn't wired as a distinct path yet — fall
+        // through to runDecomposeFacet which uses the principle's axis
+        // + the per-axis direction/lens/result in facetDirection[...].
+        void runDecomposeFacet(sp.axis);
+      }
+      inputRef.current?.blur();
+      return;
+    }
     const effectiveTopic = activeTopic ?? draft.trim();
     if (!effectiveTopic) return;
     const effectiveMode = mode;
     setTopicMode(effectiveMode === "verify" ? "verify" : "explore");
-    if (!activeTopic) {
+    if (!rootTopic) {
       // Fresh home submit — stage topic text + any un-committed conditions,
       // then queue the actual commit. The useEffect below fires once
       // pendingTopic materializes from runDecompose.
@@ -176,12 +221,7 @@ export default function TopBar({
     } else {
       // Topic already staged — commit immediately in the current frame.
       if (effectiveMode === "verify") {
-        void runVerifyFacet(
-          "주제",
-          activeTopic,
-          activeTopic,
-          selectedLens,
-        );
+        void runVerifyFacet("주제", rootTopic, rootTopic, selectedLens);
       } else {
         void commitPending(
           topicPurposeId,
@@ -333,7 +373,9 @@ export default function TopBar({
       <div className="flex gap-1 rounded-2xl border border-white/15 bg-white/[0.03] p-1">
         {MODES.map((m) => {
           const active = mode === m.key;
-          const disabled = m.key === "memo" && disableMemo;
+          // 메모 버튼은 저장할 축/주제가 있어야 활성. 홈(아무것도 없음)에서는
+          // 비활성 — 유저가 "뭘 저장할지" 모호해지는 걸 방지한다.
+          const disabled = m.key === "memo" && !activeTopic;
           return (
             <button
               key={m.key}

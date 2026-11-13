@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useIdea } from "../state/IdeaContext";
+import { principleKey, useIdea } from "../state/IdeaContext";
 import DirectionChipRow from "./DirectionChipRow";
 import FacetLensRow from "./FacetLensRow";
 import {
@@ -92,6 +92,11 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
     removeCustomDirection,
     selectedLens,
     setSelectedLens,
+    selectedPrinciple,
+    principleDirection,
+    setPrincipleDirection,
+    principleLens,
+    setPrincipleLens,
     setChipPanelOpen,
     setChipPanelFullScreen,
     userChips,
@@ -103,10 +108,28 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
   if (mode === null) return null;
 
   const isExpand = mode === "expand";
-  const currentDirection = isExpand ? topicExpandDirectionId : topicDirectionId;
-  const onChangeDirection = isExpand
-    ? setTopicExpandDirectionId
-    : setTopicDirectionId;
+  // Scope: selected principle takes over if focused — direction + lens
+  // reads/writes become principle-scoped (principleDirection[pk] etc.).
+  // Otherwise fall back to the topic-level state.
+  const scopePk = selectedPrinciple
+    ? principleKey(selectedPrinciple.axis, selectedPrinciple.name)
+    : null;
+  const currentDirection = scopePk
+    ? principleDirection[scopePk] ??
+      (isExpand ? topicExpandDirectionId : topicDirectionId)
+    : isExpand
+      ? topicExpandDirectionId
+      : topicDirectionId;
+  const onChangeDirection = (id: string) => {
+    if (scopePk) setPrincipleDirection(scopePk, id);
+    else if (isExpand) setTopicExpandDirectionId(id);
+    else setTopicDirectionId(id);
+  };
+  const currentLens = scopePk ? principleLens[scopePk] ?? selectedLens : selectedLens;
+  const onChangeLens = (lens: typeof selectedLens) => {
+    if (scopePk) setPrincipleLens(scopePk, lens);
+    else setSelectedLens(lens);
+  };
 
   const openFullPanel = () => {
     setChipPanelFullScreen(true);
@@ -241,8 +264,8 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
           )}
           {axis === "lens" && (
             <FacetLensRow
-              currentLens={selectedLens}
-              onChangeLens={setSelectedLens}
+              currentLens={currentLens}
+              onChangeLens={onChangeLens}
               hideLabel
               singleLine
             />

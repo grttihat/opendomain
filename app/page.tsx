@@ -245,11 +245,7 @@ function PageInner() {
             {showTopicShell ? (
               <>
                 <div className="shrink-0 pt-10 pb-2">
-                  <TopBar
-                    disableMemo
-                    mode={homeMode}
-                    onModeChange={setHomeMode}
-                  />
+                  <TopBar mode={homeMode} onModeChange={setHomeMode} />
                 </div>
                 <div className="flex-1 min-h-0 overflow-auto">
                   <DecompositionTree />
