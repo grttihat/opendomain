@@ -270,7 +270,15 @@ function PageInner() {
                     <TopBar mode={homeMode} onModeChange={setHomeMode} />
                   </div>
                 </div>
-                <div className="flex-1 min-h-0 overflow-auto">
+                <div
+                  className="flex-1 min-h-0 overflow-auto"
+                  style={{
+                    maskImage:
+                      "linear-gradient(to bottom, transparent 0%, black 6%, black 94%, transparent 100%)",
+                    WebkitMaskImage:
+                      "linear-gradient(to bottom, transparent 0%, black 6%, black 94%, transparent 100%)",
+                  }}
+                >
                   <DecompositionTree />
                 </div>
                 <div

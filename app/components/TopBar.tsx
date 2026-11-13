@@ -281,7 +281,7 @@ export default function TopBar({
 
   return (
     <div className="mx-auto flex w-full flex-col gap-2 px-3 md:max-w-[560px] md:px-0">
-      <div className="rounded-2xl border border-white/15 bg-white/[0.03] px-3 py-2">
+      <div className="px-3 py-2">
         <div className="flex flex-wrap items-center gap-1.5">
           <svg
             viewBox="0 0 24 24"
@@ -389,7 +389,7 @@ export default function TopBar({
         </div>
       </div>
 
-      <div className="flex gap-1 rounded-2xl border border-white/15 bg-white/[0.03] p-1">
+      <div className="flex gap-1 p-1">
         {MODES.map((m) => {
           const active = mode === m.key;
           // 메모 버튼은 저장할 축/주제가 있어야 활성. 홈(아무것도 없음)에서는

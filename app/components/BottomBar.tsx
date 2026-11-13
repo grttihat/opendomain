@@ -459,7 +459,7 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
       )}
 
       {/* Axis selector */}
-      <div className="flex gap-1 rounded-2xl border border-white/15 bg-white/[0.03] p-1">
+      <div className="flex gap-1 p-1">
         {AXES.map((a) => {
           const active = axis === a.key;
           return (
