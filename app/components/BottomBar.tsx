@@ -117,6 +117,35 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
   const [chipSubTab, setChipSubTab] = useState<ChipSubTab>("library");
   const [chipLibCat, setChipLibCat] = useState<ChipKind | null>(null);
 
+  // Lazy-fetch 유사칩 when the user opens the similar tab with a focused
+  // principle and we don't have any recs cached yet. Must stay above the
+  // early return — React hook order is fixed across renders.
+  useEffect(() => {
+    if (
+      mode === null ||
+      axis !== "chip" ||
+      chipSubTab !== "similar" ||
+      !selectedPrinciple
+    ) {
+      return;
+    }
+    const pk = principleKey(selectedPrinciple.axis, selectedPrinciple.name);
+    if (chipRecommendations[pk] || chipStatus[pk] === "loading") return;
+    void runRecommendChips(
+      selectedPrinciple.axis,
+      selectedPrinciple.name,
+      selectedPrinciple.text,
+    );
+  }, [
+    mode,
+    axis,
+    chipSubTab,
+    selectedPrinciple,
+    chipRecommendations,
+    chipStatus,
+    runRecommendChips,
+  ]);
+
   if (mode === null) return null;
 
   const isExpand = mode === "expand";
@@ -352,28 +381,6 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
       </div>
     );
   };
-
-  // Lazy-fetch 유사칩 when the user opens the similar tab with a focused
-  // principle and we don't have any recs cached yet.
-  useEffect(() => {
-    if (axis !== "chip" || chipSubTab !== "similar" || !selectedPrinciple) {
-      return;
-    }
-    const pk = principleKey(selectedPrinciple.axis, selectedPrinciple.name);
-    if (chipRecommendations[pk] || chipStatus[pk] === "loading") return;
-    void runRecommendChips(
-      selectedPrinciple.axis,
-      selectedPrinciple.name,
-      selectedPrinciple.text,
-    );
-  }, [
-    axis,
-    chipSubTab,
-    selectedPrinciple,
-    chipRecommendations,
-    chipStatus,
-    runRecommendChips,
-  ]);
 
   return (
     <div className="mx-auto flex w-full flex-col gap-2 px-3 md:max-w-[560px] md:px-0">
