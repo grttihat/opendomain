@@ -92,27 +92,37 @@ export default function TopBar({
     topicPurposeId,
     selectedLens,
     selectedPrinciple,
+    selectedAxes,
     principleLens,
     principleVerifyLens,
     addMemo,
   } = useIdea();
 
-  // Scope hierarchy:
-  //   selectedPrinciple > pendingTopic > decomposition?.topicText
-  // When a principle is focused the TopBar flips into principle-scope —
-  // tag, condition pk, submit action, and the 메모 button all re-target.
+  // Scope hierarchy (가장 세분화 우선):
+  //   selectedPrinciple → principle pk
+  //   selectedAxes.first → axis pk
+  //   pendingTopic / decomposition.topicText → 주제 pk
+  // 선택 상태가 바뀌면 TopBar의 pill·조건·제출·메모 대상이 다같이 재스코프된다.
   const rootTopic = pendingTopic ?? decomposition?.topicText ?? null;
   const principleScopePk = selectedPrinciple
     ? principleKey(selectedPrinciple.axis, selectedPrinciple.name)
     : null;
+  const focusedAxis =
+    !principleScopePk && selectedAxes.size > 0
+      ? (selectedAxes.values().next().value as string)
+      : null;
   const activeTopic = selectedPrinciple
     ? `[${selectedPrinciple.axis}] ${selectedPrinciple.name}`
-    : rootTopic;
+    : focusedAxis
+      ? `[${focusedAxis}]`
+      : rootTopic;
   const effectivePk = principleScopePk
     ? principleScopePk
-    : rootTopic
-      ? `주제::${rootTopic}`
-      : null;
+    : focusedAxis
+      ? focusedAxis
+      : rootTopic
+        ? `주제::${rootTopic}`
+        : null;
   const conditions = effectivePk
     ? (principleCustomContext[effectivePk] ?? "")
         .split("\n")
@@ -177,7 +187,9 @@ export default function TopBar({
       if (!activeTopic) return;
       const memoText = selectedPrinciple
         ? `[${selectedPrinciple.axis}] ${selectedPrinciple.name}\n${selectedPrinciple.text}`
-        : activeTopic;
+        : focusedAxis && decomposition?.axisToPrinciple?.[focusedAxis]
+          ? `[${focusedAxis}] ${decomposition.axisToPrinciple[focusedAxis]}`
+          : activeTopic;
       addMemo(memoText);
       // Deselect the memo mode so the user has a clear "saved" moment
       // rather than an ambiguous locked state.
@@ -198,6 +210,13 @@ export default function TopBar({
         // + the per-axis direction/lens/result in facetDirection[...].
         void runDecomposeFacet(sp.axis);
       }
+      inputRef.current?.blur();
+      return;
+    }
+    // Axis scope: no principle but a focused axis → runDecomposeFacet
+    // uses facetDirection/facetLens[axis] that BottomBar wrote into.
+    if (focusedAxis) {
+      void runDecomposeFacet(focusedAxis);
       inputRef.current?.blur();
       return;
     }

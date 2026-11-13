@@ -98,6 +98,11 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
     setPrincipleDirection,
     principleLens,
     setPrincipleLens,
+    selectedAxes,
+    facetDirection,
+    setFacetDirection,
+    facetLens,
+    setFacetLens,
     setChipPanelOpen,
     setChipPanelFullScreen,
     userChips,
@@ -149,26 +154,41 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
   if (mode === null) return null;
 
   const isExpand = mode === "expand";
-  // Scope: selected principle takes over if focused — direction + lens
-  // reads/writes become principle-scoped (principleDirection[pk] etc.).
-  // Otherwise fall back to the topic-level state.
+  // Scope hierarchy:
+  //   selectedPrinciple → principleDirection/principleLens by pk
+  //   focused axis (first in selectedAxes) → facetDirection/facetLens by axis
+  //   otherwise → topic-level (topicDirectionId / selectedLens)
+  // 이 순서로 떨어지면서 "가장 세분화된 포커스"에 설정이 바인딩된다.
   const scopePk = selectedPrinciple
     ? principleKey(selectedPrinciple.axis, selectedPrinciple.name)
     : null;
+  const focusedAxis =
+    !scopePk && selectedAxes.size > 0
+      ? (selectedAxes.values().next().value as string)
+      : null;
   const currentDirection = scopePk
     ? principleDirection[scopePk] ??
       (isExpand ? topicExpandDirectionId : topicDirectionId)
-    : isExpand
-      ? topicExpandDirectionId
-      : topicDirectionId;
+    : focusedAxis
+      ? facetDirection[focusedAxis] ??
+        (isExpand ? topicExpandDirectionId : topicDirectionId)
+      : isExpand
+        ? topicExpandDirectionId
+        : topicDirectionId;
   const onChangeDirection = (id: string) => {
     if (scopePk) setPrincipleDirection(scopePk, id);
+    else if (focusedAxis) setFacetDirection(focusedAxis, id);
     else if (isExpand) setTopicExpandDirectionId(id);
     else setTopicDirectionId(id);
   };
-  const currentLens = scopePk ? principleLens[scopePk] ?? selectedLens : selectedLens;
+  const currentLens = scopePk
+    ? principleLens[scopePk] ?? selectedLens
+    : focusedAxis
+      ? facetLens[focusedAxis] ?? selectedLens
+      : selectedLens;
   const onChangeLens = (lens: typeof selectedLens) => {
     if (scopePk) setPrincipleLens(scopePk, lens);
+    else if (focusedAxis) setFacetLens(focusedAxis, lens);
     else setSelectedLens(lens);
   };
 

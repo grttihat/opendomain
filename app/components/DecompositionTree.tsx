@@ -898,7 +898,7 @@ function MobileDecomposeFab({
 
   return (
     <div
-      style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 4rem)" }}
+      style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 10rem)" }}
       className="mobile-decompose-fab absolute left-1/2 z-30 flex w-[calc(100vw-3rem)] max-w-md -translate-x-1/2 items-center justify-center gap-2"
     >
       {activeMode !== "verify" && (
@@ -1258,49 +1258,7 @@ function MergedAxisBranch({
         <div className="text-[10px] uppercase tracking-wider text-text-muted">
           다축 결합 ({selectedAxes.length}개)
         </div>
-        <ControllerAccordion
-          label="사고 방향"
-          tag={
-            [...kBuiltinDirections, ...customDirections].find(
-              (d) => d.id === currentDirection,
-            )?.label ?? "원리"
-          }
-          open={openCategory === "direction"}
-          onToggle={() => toggleCategory("direction")}
-        >
-          <DirectionChipRow
-            currentDirection={currentDirection}
-            customDirections={customDirections}
-            onChangeDirection={onChangeDirection}
-            addCustomDirection={addCustomDirection}
-            removeCustomDirection={removeCustomDirection}
-            hideLabel
-          />
-        </ControllerAccordion>
-        <ControllerAccordion
-          label="렌즈"
-          tag={currentLens ? lensLabel(currentLens) : "없음"}
-          open={openCategory === "lens"}
-          onToggle={() => toggleCategory("lens")}
-        >
-          <FacetLensRow
-            currentLens={currentLens}
-            onChangeLens={onChangeLens}
-            hideLabel
-          />
-        </ControllerAccordion>
-        <ControllerAccordion
-          label="실행 결과"
-          tag={currentResultType ?? "없음"}
-          open={openCategory === "result"}
-          onToggle={() => toggleCategory("result")}
-        >
-          <ResultTypeChipRow
-            value={currentResultType}
-            onChange={onChangeResultType}
-            hideLabel
-          />
-        </ControllerAccordion>
+        {/* 사고방향·렌즈·실행결과 아코디언은 글로벌 BottomBar가 담당. */}
         {/* Inline 분해 시작 removed — fixed bottom-center FAB owns the
             submit action across all breakpoints. */}
         {status === "error" && (
@@ -1535,126 +1493,16 @@ function AxisRow({
         </button>
       </div>
 
-      {showControls && (
-        <div ref={controlsRef} className={CONTROL_PANEL_CLASSES}>
-          {/* 공통 입력바 — PendingTopicCard와 동일한 "태그 + 조건 + 제출"
-              패턴. 축 자체를 태그로 보여주고, 조건은 principleCustomContext
-              [axisPk]에 쌓임. 제출은 현재 모드(분해/확장/증명) 액션. */}
-          <ConditionInputBar
-            tagText={axis}
-            pk={axisPk}
-            existingContext={axisCustomContext}
-            setPrincipleCustomContext={setPrincipleCustomContext}
-            onSubmit={() => {
-              if (axisMode === "verify") {
-                void runVerifyFacet(axis, "축 전체", principle, axisVerifyLens);
-              } else {
-                void onDecomposeFacet(
-                  currentDirection,
-                  currentLens,
-                  currentResultType,
-                );
-              }
-            }}
+      {/* 우측 컨트롤러(조건 입력 + 모드탭 + 아코디언)는 전부 글로벌
+          TopBar/BottomBar가 담당. AncestorStack(부모 facet 체인 + 전체
+          여정 뷰 트리거)만 슬림 info 스트립으로 유지한다. */}
+      {showControls && ancestorEntries.length > 0 && (
+        <div className="shrink-0 pt-2">
+          <AncestorStack
+            ancestors={ancestorEntries}
+            current={currentEntry}
+            onClick={() => setShowFullFacet(true)}
           />
-          {/* 외부 보더 — 부모 facet 구간 + 탭(내부 보더) + 아코디언 전부를
-              한 박스에 묶음. 아코디언 열림/닫힘 시 박스 전체 높이가 바뀌어
-              축 하단 공백도 함께 조절되고, 부모 facet 구간도 그 공백에
-              포함됨. */}
-          <div className="flex flex-col gap-3 rounded-xl border border-white/[0.14] bg-white/[0.04] p-3">
-            {/* 부모 facet 스택 — 보더 안 상단 */}
-            <AncestorStack
-              ancestors={ancestorEntries}
-              current={currentEntry}
-              onClick={() => setShowFullFacet(true)}
-            />
-            {/* 분해/확장/증명 탭 — 백컬러 블랙, 아웃라인 보더 없음 */}
-            <div className="rounded-xl bg-black p-1.5">
-              <div className="flex items-stretch gap-1.5">
-                {(["explore", "expand", "verify"] as const).map((m) => {
-                  const active = axisMode === m;
-                const label =
-                  m === "explore" ? "분해" : m === "expand" ? "확장" : "증명";
-                return (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setPrincipleControllerMode(axisPk, m)}
-                    className={`flex-1 whitespace-nowrap rounded-lg px-6 py-2 text-center text-[14px] font-medium transition-colors md:px-5 md:py-1.5 md:text-[13px] ${
-                      active
-                        ? "bg-white text-black"
-                        : "text-text-secondary hover:bg-white/[0.08] hover:text-text-primary"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-              </div>
-            </div>
-
-            {axisMode === "explore" || axisMode === "expand" ? (
-              <>
-                <ControllerAccordion
-                  label="사고 방향"
-                  tag={
-                    [...kBuiltinDirections, ...customDirections].find(
-                      (d) => d.id === currentDirection,
-                    )?.label ?? (axisMode === "expand" ? "역사 평행" : "원리")
-                  }
-                  open={openCategory === "direction"}
-                  onToggle={() => toggleCategory("direction")}
-                >
-                  <DirectionChipRow
-                    axis={axisMode === "expand" ? "expand" : "decompose"}
-                    currentDirection={currentDirection}
-                    customDirections={customDirections}
-                    onChangeDirection={onChangeDirection}
-                    addCustomDirection={addCustomDirection}
-                    removeCustomDirection={removeCustomDirection}
-                    hideLabel
-                  />
-                </ControllerAccordion>
-                <ControllerAccordion
-                  label="렌즈"
-                  tag={currentLens ? lensLabel(currentLens) : "없음"}
-                  open={openCategory === "lens"}
-                  onToggle={() => toggleCategory("lens")}
-                >
-                  <FacetLensRow
-                    currentLens={currentLens}
-                    onChangeLens={onChangeLens}
-                    hideLabel
-                  />
-                </ControllerAccordion>
-                <ControllerAccordion
-                  label="실행 결과"
-                  tag={currentResultType ?? "없음"}
-                  open={openCategory === "result"}
-                  onToggle={() => toggleCategory("result")}
-                >
-                  <ResultTypeChipRow
-                    value={currentResultType}
-                    onChange={onChangeResultType}
-                    hideLabel
-                  />
-                </ControllerAccordion>
-              </>
-            ) : (
-              <ControllerAccordion
-                label="렌즈"
-                tag={axisVerifyLens ? lensLabel(axisVerifyLens) : "없음"}
-                open={openCategory === "verify-lens"}
-                onToggle={() => toggleCategory("verify-lens")}
-              >
-                <FacetLensRow
-                  currentLens={axisVerifyLens}
-                  onChangeLens={(lens) => setPrincipleVerifyLens(axisPk, lens)}
-                  hideLabel
-                />
-              </ControllerAccordion>
-            )}
-          </div>
           <SessionTimelineModal
             open={timelineOpen}
             onClose={() => setTimelineOpen(false)}
@@ -2432,140 +2280,15 @@ export function FacetNode({
           → 메모
         </button>
       </div>
-      {expanded && (
-        <div ref={controlsRef} className={CONTROL_PANEL_CLASSES}>
-          {/* 공통 입력바 — 현재 facet 명을 태그로, 조건은
-              principleCustomContext[pk]에 쌓임. 제출은 현재 모드 액션. */}
-          <ConditionInputBar
-            tagText={facetName}
-            pk={pk}
-            existingContext={customContext}
-            setPrincipleCustomContext={setPrincipleCustomContext}
-            onSubmit={() => {
-              if (mode === "verify") {
-                void runVerifyFacet(
-                  rootAxis,
-                  pathName,
-                  facetText,
-                  currentVerifyLens,
-                );
-              } else {
-                void runDecomposeSubFacet(
-                  rootAxis,
-                  pathName,
-                  facetText,
-                  principleDirection[pk] ?? topicDirectionId,
-                  principleLens[pk] ?? selectedLens ?? null,
-                  principleResultType[pk] ?? topicResultType ?? null,
-                );
-              }
-            }}
+      {/* 우측 컨트롤러 전부 글로벌 TopBar/BottomBar로 이관. 여기엔 부모
+          facet 체인 info(AncestorStack + 전체 여정 뷰 트리거)만 유지. */}
+      {expanded && ancestorEntries.length > 0 && (
+        <div className="shrink-0 pt-2">
+          <AncestorStack
+            ancestors={ancestorEntries}
+            current={currentEntry}
+            onClick={() => setShowFullFacet(true)}
           />
-          {/* 외부 보더 — 부모 facet + 탭(인너 보더) + 아코디언 전부 포함 */}
-          <div className="flex flex-col gap-3 rounded-xl border border-white/[0.14] bg-white/[0.04] p-3">
-            <AncestorStack
-              ancestors={ancestorEntries}
-              current={currentEntry}
-              onClick={() => setShowFullFacet(true)}
-            />
-            {/* 분해/확장/증명 탭 — 백컬러 블랙, 아웃라인 보더 없음 */}
-            <div className="rounded-xl bg-black p-1.5">
-              <div className="flex items-stretch gap-1.5">
-                {(["explore", "expand", "verify"] as const).map((m) => {
-                  const active = mode === m;
-                  const label =
-                    m === "explore" ? "분해" : m === "expand" ? "확장" : "증명";
-                  return (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => setPrincipleControllerMode(pk, m)}
-                      className={`flex-1 whitespace-nowrap rounded-lg px-6 py-2 text-center text-[14px] font-medium transition-colors md:px-5 md:py-1.5 md:text-[13px] ${
-                        active
-                          ? "bg-white text-black"
-                          : "text-text-secondary hover:bg-white/[0.08] hover:text-text-primary"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {mode === "explore" || mode === "expand" ? (
-              <>
-                <ControllerAccordion
-                  label="사고 방향"
-                  tag={
-                    [...kBuiltinDirections, ...customDirections].find(
-                      (d) =>
-                        d.id === (principleDirection[pk] ?? topicDirectionId),
-                    )?.label ?? (mode === "expand" ? "역사 평행" : "원리")
-                  }
-                  open={openCategory === "direction"}
-                  onToggle={() => toggleCategory("direction")}
-                >
-                  <DirectionChipRow
-                    axis={mode === "expand" ? "expand" : "decompose"}
-                    currentDirection={
-                      principleDirection[pk] ?? topicDirectionId
-                    }
-                    customDirections={customDirections}
-                    onChangeDirection={(id) => setPrincipleDirection(pk, id)}
-                    addCustomDirection={addCustomDirection}
-                    removeCustomDirection={removeCustomDirection}
-                    hideLabel
-                  />
-                </ControllerAccordion>
-                <ControllerAccordion
-                  label="렌즈"
-                  tag={(() => {
-                    const l = principleLens[pk] ?? selectedLens ?? null;
-                    return l ? lensLabel(l) : "없음";
-                  })()}
-                  open={openCategory === "lens"}
-                  onToggle={() => toggleCategory("lens")}
-                >
-                  <FacetLensRow
-                    currentLens={principleLens[pk] ?? selectedLens ?? null}
-                    onChangeLens={(lens) => setPrincipleLens(pk, lens)}
-                    hideLabel
-                  />
-                </ControllerAccordion>
-                <ControllerAccordion
-                  label="실행 결과"
-                  tag={
-                    (principleResultType[pk] ?? topicResultType ?? null) ??
-                    "없음"
-                  }
-                  open={openCategory === "result"}
-                  onToggle={() => toggleCategory("result")}
-                >
-                  <ResultTypeChipRow
-                    value={
-                      principleResultType[pk] ?? topicResultType ?? null
-                    }
-                    onChange={(rt) => setPrincipleResultType(pk, rt)}
-                    hideLabel
-                  />
-                </ControllerAccordion>
-              </>
-            ) : (
-              <ControllerAccordion
-                label="렌즈"
-                tag={currentVerifyLens ? lensLabel(currentVerifyLens) : "없음"}
-                open={openCategory === "verify-lens"}
-                onToggle={() => toggleCategory("verify-lens")}
-              >
-                <FacetLensRow
-                  currentLens={currentVerifyLens}
-                  onChangeLens={(lens) => setPrincipleVerifyLens(pk, lens)}
-                  hideLabel
-                />
-              </ControllerAccordion>
-            )}
-          </div>
           <SessionTimelineModal
             open={timelineOpen}
             onClose={() => setTimelineOpen(false)}
