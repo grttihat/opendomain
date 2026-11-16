@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { principleKey, useIdea } from "../state/IdeaContext";
 
 export type TopMode = "decompose" | "expand" | "verify" | "memo";
@@ -116,27 +116,35 @@ export default function TopBar({
     : focusedAxis
       ? `[${focusedAxis}]`
       : rootTopic;
+  const topicPk = rootTopic ? `주제::${rootTopic}` : null;
   const effectivePk = principleScopePk
     ? principleScopePk
     : focusedAxis
-      ? focusedAxis
-      : rootTopic
-        ? `주제::${rootTopic}`
-        : null;
-  const conditions = effectivePk
-    ? (principleCustomContext[effectivePk] ?? "")
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(Boolean)
-    : [];
+      ? principleKey(focusedAxis, "축 전체")
+      : topicPk;
+  const splitLines = (pk: string | null) =>
+    pk
+      ? (principleCustomContext[pk] ?? "")
+          .split("\n")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
+  const conditions = splitLines(effectivePk);
+  // 인풋바 태그 = 사용자가 쓴 주제 + 탐색 중 추가한 조건들. 선택한 축/원리
+  // 이름은 태그로 올리지 않는다(위치 정보는 AncestorStack이 담당).
+  const conditionTags: { pk: string; idx: number; text: string }[] = [];
+  if (topicPk) {
+    splitLines(topicPk).forEach((text, idx) =>
+      conditionTags.push({ pk: topicPk, idx, text }),
+    );
+  }
+  if (effectivePk && effectivePk !== topicPk) {
+    conditions.forEach((text, idx) =>
+      conditionTags.push({ pk: effectivePk, idx, text }),
+    );
+  }
 
   const [draft, setDraft] = useState("");
-  // Queued submit — wait for pendingTopic to materialize after runDecompose
-  // (setState is async), then dispatch commitPending/runVerifyFacet.
-  const [pendingSubmit, setPendingSubmit] = useState<{
-    topic: string;
-    mode: TopMode | null;
-  } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const busy = status === "loading";
 
@@ -152,11 +160,12 @@ export default function TopBar({
     );
     setDraft("");
   };
-  const removeCondition = (idx: number) => {
-    if (!effectivePk) return;
+  const removeCondition = (pk: string, idx: number) => {
     setPrincipleCustomContext(
-      effectivePk,
-      conditions.filter((_, i) => i !== idx).join("\n"),
+      pk,
+      splitLines(pk)
+        .filter((_, i) => i !== idx)
+        .join("\n"),
     );
   };
 
@@ -173,9 +182,8 @@ export default function TopBar({
       return;
     }
     if (e.key === "Backspace" && draft.length === 0) {
-      if (hasTopic && conditions.length > 0) {
-        removeCondition(conditions.length - 1);
-      }
+      const last = conditionTags[conditionTags.length - 1];
+      if (hasTopic && last) removeCondition(last.pk, last.idx);
     }
   };
 
@@ -225,18 +233,13 @@ export default function TopBar({
     const effectiveMode = mode;
     setTopicMode(effectiveMode === "verify" ? "verify" : "explore");
     if (!rootTopic) {
-      // Fresh home submit — stage topic text + any un-committed conditions,
-      // then queue the actual commit. The useEffect below fires once
-      // pendingTopic materializes from runDecompose.
-      const pk = `주제::${effectiveTopic}`;
-      const pendingConditions = draft.trim() ? [draft.trim()] : [];
-      if (pendingConditions.length > 0) {
-        setPrincipleCustomContext(pk, pendingConditions.join("\n"));
-      }
+      // 첫 제출은 주제만 스테이징한다. 분해 결과는 하단 컨트롤러에서
+      // 방향·렌즈를 고른 뒤 제출 버튼을 다시 눌러야 생성된다 — 키패드
+      // "이동"만으로 바로 결과가 뜨지 않게.
       setTopicText(effectiveTopic);
       setDraft("");
       void runDecompose();
-      setPendingSubmit({ topic: effectiveTopic, mode: effectiveMode });
+      if (mode === null) onModeChange("decompose");
     } else {
       // Topic already staged — commit immediately in the current frame.
       if (effectiveMode === "verify") {
@@ -250,34 +253,6 @@ export default function TopBar({
     }
     inputRef.current?.blur();
   };
-
-  // Fire the queued commit once runDecompose has set pendingTopic.
-  useEffect(() => {
-    if (!pendingSubmit || !pendingTopic) return;
-    if (pendingSubmit.topic !== pendingTopic) return;
-    const { mode: submitMode } = pendingSubmit;
-    setPendingSubmit(null);
-    if (submitMode === "verify") {
-      void runVerifyFacet(
-        "주제",
-        pendingTopic,
-        pendingTopic,
-        selectedLens,
-      );
-    } else {
-      void commitPending(
-        topicPurposeId,
-        submitMode === "expand" ? "expand" : "decompose",
-      );
-    }
-  }, [
-    pendingSubmit,
-    pendingTopic,
-    commitPending,
-    runVerifyFacet,
-    topicPurposeId,
-    selectedLens,
-  ]);
 
   return (
     <div className="mx-auto flex w-full flex-col gap-2 px-3 md:max-w-[560px] md:px-0">
@@ -296,25 +271,25 @@ export default function TopBar({
             />
           </svg>
 
-          {activeTopic && (
+          {rootTopic && (
             <span
               className="inline-flex max-w-full items-center rounded-full bg-white/[0.22] px-3 py-1 text-[13px] font-medium text-text-primary md:text-[12px]"
-              title={activeTopic}
+              title={rootTopic}
             >
-              <span className="truncate">{activeTopic}</span>
+              <span className="truncate">{rootTopic}</span>
             </span>
           )}
 
-          {conditions.map((c, i) => (
+          {conditionTags.map((c) => (
             <span
-              key={`${c}-${i}`}
+              key={`${c.pk}-${c.idx}`}
               className="inline-flex items-center gap-1 rounded-full bg-white/[0.1] py-1 pl-3 pr-1 text-[12px] text-text-primary md:text-[11px]"
-              title={c}
+              title={c.text}
             >
-              <span className="max-w-[140px] truncate">+ {c}</span>
+              <span className="max-w-[140px] truncate">+ {c.text}</span>
               <button
                 type="button"
-                onClick={() => removeCondition(i)}
+                onClick={() => removeCondition(c.pk, c.idx)}
                 aria-label="조건 제거"
                 className="rounded-full p-0.5 text-text-muted hover:bg-white/10 hover:text-text-primary"
               >

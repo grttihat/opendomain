@@ -83,11 +83,10 @@ function PageInner() {
   // TopBar가 "주제 입력" 창 역할도 하므로 그대로 노출.
   const hasFacetFocus =
     selectedPrinciple !== null || selectedAxes.size > 0;
+  // 주제 입력 전 + 주제 스테이징 직후(분해 전)에도 노출 — 스테이징 후
+  // 하단 컨트롤러에서 방향·렌즈를 고르고 제출해야 분해가 실행된다.
   const isFreshTopicHome =
-    inputMode === "topic" &&
-    !pendingTopic &&
-    !decomposition &&
-    !inTopicPage;
+    inputMode === "topic" && !decomposition && !inTopicPage;
   const showTopicControllers = isFreshTopicHome || hasFacetFocus;
   const canGoBack = inputMode === "memo" && !memoListMode;
   // Bottom-sheet variant only applies to the "verify auto-opened the
@@ -274,9 +273,9 @@ function PageInner() {
                   className="flex-1 min-h-0 overflow-auto"
                   style={{
                     maskImage:
-                      "linear-gradient(to bottom, transparent 0%, black 6%, black 94%, transparent 100%)",
+                      "linear-gradient(to bottom, transparent 0%, black 3%, black 97%, transparent 100%)",
                     WebkitMaskImage:
-                      "linear-gradient(to bottom, transparent 0%, black 6%, black 94%, transparent 100%)",
+                      "linear-gradient(to bottom, transparent 0%, black 3%, black 97%, transparent 100%)",
                   }}
                 >
                   <DecompositionTree />

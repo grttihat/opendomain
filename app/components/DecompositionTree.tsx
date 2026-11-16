@@ -198,6 +198,68 @@ export type AncestorEntry = {
   label?: string;
 };
 
+// facet 뷰 전체 상단에 고정되는 내역(여정) 스트립. facet 생성과 동시에
+// 주제만으로 뜨고, 축·세부 facet을 선택하면 체인이 늘어난다. 클릭 시
+// FullFacetJourneyView.
+function FacetJourneyHeader() {
+  const { decomposition, facetDecompositions, selectedPrinciple, selectedAxes } =
+    useIdea();
+  const [open, setOpen] = useState(false);
+  if (!decomposition) return null;
+  const topic = decomposition.topicText;
+  const entries: AncestorEntry[] = [
+    { title: topic, shortTitle: topic, pk: `주제::${topic}`, label: "주제" },
+  ];
+  const axis =
+    selectedPrinciple?.axis ??
+    (selectedAxes.size > 0
+      ? (selectedAxes.values().next().value as string)
+      : null);
+  if (axis) {
+    const axisPrinciple = decomposition.axisToPrinciple?.[axis];
+    entries.push({
+      title: axisPrinciple ? `${axis} — ${axisPrinciple}` : axis,
+      shortTitle: axis,
+      fullText: axisPrinciple,
+      pk: principleKey(axis, "축 전체"),
+      label: "축",
+    });
+    if (selectedPrinciple && selectedPrinciple.name !== "축 전체") {
+      const segs = selectedPrinciple.name.split(">");
+      let acc = "";
+      segs.forEach((seg, i) => {
+        acc = acc ? `${acc}>${seg}` : seg;
+        const isLast = i === segs.length - 1;
+        const content = isLast
+          ? selectedPrinciple.text
+          : i === 0
+            ? facetDecompositions?.[axis]?.[seg]
+            : undefined;
+        entries.push({
+          title: content ? `${seg} — ${content}` : seg,
+          shortTitle: seg,
+          fullText: content,
+          pk: principleKey(axis, acc),
+          label: isLast ? "세부 facet · 현재" : `세부 facet · 레벨 ${i + 1}`,
+        });
+      });
+    }
+  }
+  const current = entries[entries.length - 1];
+  return (
+    <>
+      <AncestorStack
+        ancestors={entries.slice(0, -1)}
+        current={current}
+        onClick={() => setOpen(true)}
+      />
+      {open && (
+        <FullFacetJourneyView journey={entries} onClose={() => setOpen(false)} />
+      )}
+    </>
+  );
+}
+
 // Stacked parent-facet display. Renders inside the outer tabs/accordion
 // border — no own border/background. Shows ONLY the 3 most recent facets;
 // older ones not rendered. Top portion has a subtle gradient overlay to
@@ -232,7 +294,10 @@ function AncestorStack({
       title={onClick ? "클릭하면 전문 보기" : undefined}
       className="w-full text-left"
     >
-      <div className="flex flex-col" style={maskStyle}>
+      <div
+        className="flex flex-col"
+        style={visible.length >= 3 ? maskStyle : undefined}
+      >
         {visible.flatMap((entry, i) => {
           const chips = entry.pk ? attachedChips[entry.pk] ?? [] : [];
           const titleRow = (
@@ -567,10 +632,8 @@ export default function DecompositionTree() {
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-black">
-      <header className="px-6 pt-12">
-        <h1 className="whitespace-nowrap text-lg font-bold text-text-primary">
-          {decomposition.topicText}
-        </h1>
+      <header className="shrink-0 px-6 pt-12">
+        <FacetJourneyHeader />
       </header>
 
       {/* pb-[80vh] 확보 — 마지막 축을 선택했을 때도 scrollElementIntoView가
@@ -1430,27 +1493,6 @@ function AxisRow({
   return (
     <div className="flex items-start gap-3">
       <div className="flex shrink-0 snap-center flex-col gap-2 w-[max(24vw,260px)] max-md:w-[calc(100vw-1.5rem)]">
-        {/* AncestorStack(부모 facet 체인 + 전체 여정 뷰 트리거) — 카드
-            위에 슬림 info 스트립으로 배치. 클릭 시 FullFacetJourneyView. */}
-        {showControls && ancestorEntries.length > 0 && (
-          <div className="shrink-0">
-            <AncestorStack
-              ancestors={ancestorEntries}
-              current={currentEntry}
-              onClick={() => setShowFullFacet(true)}
-            />
-            <SessionTimelineModal
-              open={timelineOpen}
-              onClose={() => setTimelineOpen(false)}
-            />
-            {showFullFacet && (
-              <FullFacetJourneyView
-                journey={journeyEntries}
-                onClose={() => setShowFullFacet(false)}
-              />
-            )}
-          </div>
-        )}
         <div
           ref={(el) => registerCardRef?.(axis, el)}
           className="group relative w-full"
@@ -2160,27 +2202,6 @@ export function FacetNode({
   return (
     <div className="flex items-start gap-3">
       <div className="flex shrink-0 snap-center flex-col gap-2 w-[max(24vw,260px)] max-md:w-[calc(100vw-1.5rem)]">
-        {/* AncestorStack(부모 facet 체인 + 전체 여정 뷰 트리거) — 카드
-            위에 슬림 info 스트립으로 배치. 클릭 시 FullFacetJourneyView. */}
-        {expanded && ancestorEntries.length > 0 && (
-          <div className="shrink-0">
-            <AncestorStack
-              ancestors={ancestorEntries}
-              current={currentEntry}
-              onClick={() => setShowFullFacet(true)}
-            />
-            <SessionTimelineModal
-              open={timelineOpen}
-              onClose={() => setTimelineOpen(false)}
-            />
-            {showFullFacet && (
-              <FullFacetJourneyView
-                journey={journeyEntries}
-                onClose={() => setShowFullFacet(false)}
-              />
-            )}
-          </div>
-        )}
         <div className="group relative w-full">
           <button
             onClick={handleSelect}
