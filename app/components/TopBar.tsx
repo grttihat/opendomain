@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { principleKey, useIdea } from "../state/IdeaContext";
 
 export type TopMode = "decompose" | "expand" | "verify" | "memo";
@@ -169,26 +169,43 @@ export default function TopBar({
     );
   };
 
+  // 키패드 이동/Enter — 주제가 있으면 입력을 조건 태그로, 없으면 주제
+  // 스테이징. form submit으로 받아야 안드로이드 한글 IME에서도 확실히 잡힌다.
+  const onFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!draft.trim()) return;
+    if (hasTopic) addCondition(draft);
+    else submit();
+  };
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      if (!draft.trim()) return;
-      if (hasTopic) addCondition(draft);
-      else {
-        // First Enter on home: fire the whole flow via submit to avoid
-        // split "stage first, then commit" UX.
-        submit();
-      }
-      return;
-    }
     if (e.key === "Backspace" && draft.length === 0) {
       const last = conditionTags[conditionTags.length - 1];
       if (hasTopic && last) removeCondition(last.pk, last.idx);
     }
   };
 
+  // → 버튼을 눌렀을 때 입력창에 남은 글자가 있으면 먼저 조건 태그로 올리고,
+  // 그 조건이 반영된 다음 렌더에서 실행한다.
+  const [queuedRun, setQueuedRun] = useState(false);
+  useEffect(() => {
+    if (!queuedRun) return;
+    setQueuedRun(false);
+    runAction();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queuedRun]);
+
   const submit = () => {
     if (busy) return;
+    if (hasTopic && mode !== "memo" && draft.trim()) {
+      addCondition(draft);
+      setQueuedRun(true);
+      return;
+    }
+    runAction();
+  };
+
+  const runAction = () => {
     // Memo is a save action, not a decompose action. Handle it inline
     // and bail before the decompose/verify paths run.
     if (mode === "memo") {
@@ -257,7 +274,10 @@ export default function TopBar({
   return (
     <div className="mx-auto flex w-full flex-col gap-2 px-3 md:max-w-[560px] md:px-0">
       <div className="px-3 py-2">
-        <div className="flex flex-wrap items-center gap-1.5">
+        <form
+          onSubmit={onFormSubmit}
+          className="flex flex-wrap items-center gap-1.5"
+        >
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -361,7 +381,7 @@ export default function TopBar({
               </svg>
             )}
           </button>
-        </div>
+        </form>
       </div>
 
       <div className="flex gap-1 p-1">

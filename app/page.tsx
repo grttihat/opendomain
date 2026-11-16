@@ -5,7 +5,9 @@ import InputBar from "./components/InputBar";
 import TopBar, { type TopMode } from "./components/TopBar";
 import BottomBar from "./components/BottomBar";
 import DebugErrorBoundary from "./components/DebugErrorBoundary";
-import DecompositionTree from "./components/DecompositionTree";
+import DecompositionTree, {
+  FacetJourneyHeader,
+} from "./components/DecompositionTree";
 import ChipSidePanel from "./components/ChipSidePanel";
 import SettingsModal from "./components/SettingsModal";
 import BusinessInfoModal from "./components/BusinessInfoModal";
@@ -269,6 +271,15 @@ function PageInner() {
                     <TopBar mode={homeMode} onModeChange={setHomeMode} />
                   </div>
                 </div>
+                {decomposition && (
+                  <div
+                    className={`shrink-0 px-6 pb-2 transition-[padding] duration-200 ${
+                      showTopicControllers ? "pt-1" : "pt-12"
+                    }`}
+                  >
+                    <FacetJourneyHeader />
+                  </div>
+                )}
                 <div
                   className="flex-1 min-h-0 overflow-auto"
                   style={{

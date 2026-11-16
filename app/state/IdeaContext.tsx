@@ -521,6 +521,19 @@ type Ctx = {
 const IdeaCtx = createContext<Ctx | null>(null);
 
 const principleKey = (axis: string, name: string) => `${axis}::${name}`;
+
+// 주제 단계에서 추가한 조건은 하위 facet 요청에도 계속 적용된다.
+const scopedUserContext = (
+  ctx: Record<string, string>,
+  topicText: string | undefined,
+  pk: string,
+): string | undefined => {
+  const topicPk = topicText ? `주제::${topicText}` : null;
+  const parts = [topicPk && topicPk !== pk ? ctx[topicPk] : undefined, ctx[pk]]
+    .map((s) => s?.trim())
+    .filter(Boolean);
+  return parts.length > 0 ? parts.join("\n") : undefined;
+};
 const chipKey = (kind: ChipKind, text: string) => `${kind}::${text}`;
 const facetKey = (
   axis: string,
@@ -1076,7 +1089,11 @@ export function IdeaProvider({ children }: { children: ReactNode }) {
             directionLabel: directionMeta?.label,
             lens,
             resultType,
-            userContext: principleCustomContext[pk],
+            userContext: scopedUserContext(
+              principleCustomContext,
+              decomposition?.topicText,
+              pk,
+            ),
           }),
         });
         const data = (await res.json()) as {
@@ -1174,7 +1191,11 @@ export function IdeaProvider({ children }: { children: ReactNode }) {
             rootTopic: decomposition?.topicText,
             bigCategory: decomposition?.bigCategory,
             lens,
-            userContext: principleCustomContext[pk],
+            userContext: scopedUserContext(
+              principleCustomContext,
+              decomposition?.topicText,
+              pk,
+            ),
           }),
         });
         const data = (await res.json()) as {
@@ -2186,7 +2207,11 @@ export function IdeaProvider({ children }: { children: ReactNode }) {
             directionLabel: directionMeta?.label,
             lens,
             resultType,
-            userContext: principleCustomContext[`${axis}::축 전체`],
+            userContext: scopedUserContext(
+              principleCustomContext,
+              decomposition.topicText,
+              `${axis}::축 전체`,
+            ),
           }),
         });
         const data = (await res.json()) as {

@@ -201,7 +201,7 @@ export type AncestorEntry = {
 // facet 뷰 전체 상단에 고정되는 내역(여정) 스트립. facet 생성과 동시에
 // 주제만으로 뜨고, 축·세부 facet을 선택하면 체인이 늘어난다. 클릭 시
 // FullFacetJourneyView.
-function FacetJourneyHeader() {
+export function FacetJourneyHeader() {
   const { decomposition, facetDecompositions, selectedPrinciple, selectedAxes } =
     useIdea();
   const [open, setOpen] = useState(false);
@@ -632,9 +632,6 @@ export default function DecompositionTree() {
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-black">
-      <header className="shrink-0 px-6 pt-12">
-        <FacetJourneyHeader />
-      </header>
 
       {/* pb-[80vh] 확보 — 마지막 축을 선택했을 때도 scrollElementIntoView가
           해당 축의 컨트롤러를 스크롤러 상단에 올려놓을 수 있도록 하단에
