@@ -274,7 +274,7 @@ export default function TopBar({
   return (
     <div className="mx-auto w-full px-3 md:max-w-[560px] md:px-0">
     <div className="flex flex-col gap-1 rounded-2xl bg-white/[0.06] p-1">
-      <div className="rounded-xl bg-black/25 px-3 py-2">
+      <div className="rounded-xl bg-black/45 px-3 py-2">
         <form
           onSubmit={onFormSubmit}
           className="flex flex-wrap items-center gap-1.5"
