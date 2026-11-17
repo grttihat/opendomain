@@ -459,7 +459,7 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
       )}
 
       {/* Axis selector */}
-      <div className="flex gap-1 rounded-2xl bg-white/[0.06] p-1">
+      <div className="flex gap-1 rounded-[28px] bg-white/[0.08] p-2">
         {AXES.map((a) => {
           const active = axis === a.key;
           return (
@@ -467,7 +467,7 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
               key={a.key}
               type="button"
               onClick={() => setAxis(a.key)}
-              className={`flex flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[11px] transition-colors ${
+              className={`flex flex-1 flex-col items-center gap-1 rounded-full py-1.5 text-[11px] transition-colors ${
                 active
                   ? "bg-white/[0.12] text-text-primary"
                   : "text-text-muted hover:text-text-primary"

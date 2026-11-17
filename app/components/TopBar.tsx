@@ -273,8 +273,8 @@ export default function TopBar({
 
   return (
     <div className="mx-auto w-full px-3 md:max-w-[560px] md:px-0">
-    <div className="flex flex-col gap-1 rounded-2xl bg-white/[0.06] p-1">
-      <div className="rounded-xl bg-black/70 px-3 py-2">
+    <div className="flex flex-col gap-2 rounded-[28px] bg-white/[0.08] p-3">
+      <div className="rounded-full bg-black/70 py-1.5 pl-4 pr-1.5">
         <form
           onSubmit={onFormSubmit}
           className="flex flex-wrap items-center gap-1.5"
@@ -400,7 +400,7 @@ export default function TopBar({
                 if (disabled) return;
                 onModeChange(active ? null : m.key);
               }}
-              className={`flex flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[11px] transition-colors ${
+              className={`flex flex-1 flex-col items-center gap-1 rounded-full py-1.5 text-[11px] transition-colors ${
                 active
                   ? "bg-white/[0.12] text-text-primary"
                   : disabled
