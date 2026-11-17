@@ -10,7 +10,7 @@ const MODES: { key: TopMode; label: string; icon: JSX.Element }[] = [
     key: "decompose",
     label: "분해",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+      <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
         <circle cx="12" cy="5" r="2" stroke="currentColor" strokeWidth="1.5" />
         <circle cx="6" cy="19" r="2" stroke="currentColor" strokeWidth="1.5" />
         <circle cx="18" cy="19" r="2" stroke="currentColor" strokeWidth="1.5" />
@@ -27,7 +27,7 @@ const MODES: { key: TopMode; label: string; icon: JSX.Element }[] = [
     key: "expand",
     label: "확장",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+      <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
         <path
           d="M4 14v6h6M20 10V4h-6M4 20l7-7M20 4l-7 7"
           stroke="currentColor"
@@ -42,7 +42,7 @@ const MODES: { key: TopMode; label: string; icon: JSX.Element }[] = [
     key: "verify",
     label: "증명",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+      <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
         <path
           d="M9 3h6M10 3v6l-5 9c-.6 1 .1 2 1.2 2h11.6c1.1 0 1.8-1 1.2-2l-5-9V3"
           stroke="currentColor"
@@ -57,7 +57,7 @@ const MODES: { key: TopMode; label: string; icon: JSX.Element }[] = [
     key: "memo",
     label: "메모",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+      <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
         <path
           d="M4 20h4L19 9l-4-4L4 16v4z"
           stroke="currentColor"
@@ -282,7 +282,7 @@ export default function TopBar({
           <svg
             viewBox="0 0 24 24"
             fill="none"
-            className="h-5 w-5 shrink-0 text-text-secondary"
+            className="h-6 w-6 shrink-0 text-text-secondary"
           >
             <path
               d="M12 3l1.7 4.3L18 9l-4.3 1.7L12 15l-1.7-4.3L6 9l4.3-1.7L12 3z"
@@ -294,7 +294,7 @@ export default function TopBar({
 
           {rootTopic && (
             <span
-              className="inline-flex max-w-full items-center rounded-full bg-white/[0.22] px-3 py-1 text-[13px] font-medium text-text-primary md:text-[12px]"
+              className="inline-flex max-w-full items-center rounded-full bg-white/[0.22] px-3 py-1.5 text-[14px] font-medium text-text-primary md:text-[12px]"
               title={rootTopic}
             >
               <span className="truncate">{rootTopic}</span>
@@ -304,7 +304,7 @@ export default function TopBar({
           {conditionTags.map((c) => (
             <span
               key={`${c.pk}-${c.idx}`}
-              className="inline-flex items-center gap-1 rounded-full bg-white/[0.1] py-1 pl-3 pr-1 text-[12px] text-text-primary md:text-[11px]"
+              className="inline-flex items-center gap-1 rounded-full bg-white/[0.1] py-1 pl-3 pr-1 text-[13px] text-text-primary md:text-[11px]"
               title={c.text}
             >
               <span className="max-w-[140px] truncate">+ {c.text}</span>
@@ -339,7 +339,7 @@ export default function TopBar({
             placeholder={
               hasTopic ? "추가 조건 입력" : "탐색하고 싶은 주제를 입력하세요"
             }
-            className="min-w-[80px] flex-1 bg-transparent py-1 text-[14px] text-text-primary placeholder:text-text-muted focus:outline-none"
+            className="min-w-[80px] flex-1 bg-transparent py-2 text-[16px] text-text-primary placeholder:text-text-muted focus:outline-none"
           />
 
           <button
@@ -347,13 +347,13 @@ export default function TopBar({
             onClick={submit}
             disabled={!canSubmit}
             aria-label="제출"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-text-secondary transition-colors hover:bg-white/[0.16] hover:text-text-primary disabled:opacity-30"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-text-secondary transition-colors hover:bg-white/[0.16] hover:text-text-primary disabled:opacity-30"
           >
             {busy ? (
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
-                className="h-4 w-4 animate-spin"
+                className="h-5 w-5 animate-spin"
               >
                 <circle
                   cx="12"
@@ -371,7 +371,7 @@ export default function TopBar({
                 />
               </svg>
             ) : (
-              <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+              <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
                 <path
                   d="M5 12h14M13 5l7 7-7 7"
                   stroke="currentColor"
@@ -400,7 +400,7 @@ export default function TopBar({
                 if (disabled) return;
                 onModeChange(active ? null : m.key);
               }}
-              className={`flex flex-1 flex-col items-center gap-1 rounded-full py-1.5 text-[11px] transition-colors ${
+              className={`flex flex-1 flex-col items-center gap-1 rounded-full py-2 text-[12px] transition-colors ${
                 active
                   ? "bg-white/[0.12] text-text-primary"
                   : disabled

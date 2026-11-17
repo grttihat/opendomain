@@ -22,7 +22,7 @@ const AXES: { key: Axis; label: string; icon: JSX.Element }[] = [
     key: "direction",
     label: "사고방향",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+      <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
         <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
         <path
           d="M12 7l3 5-3 5-3-5 3-5z"
@@ -37,7 +37,7 @@ const AXES: { key: Axis; label: string; icon: JSX.Element }[] = [
     key: "lens",
     label: "렌즈",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+      <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
         <path
           d="M4 7l8-3 8 3M4 12l8-3 8 3M4 17l8-3 8 3"
           stroke="currentColor"
@@ -51,7 +51,7 @@ const AXES: { key: Axis; label: string; icon: JSX.Element }[] = [
     key: "chip",
     label: "칩",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+      <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
         <rect x="4" y="4" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
         <rect x="13" y="4" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
         <rect x="4" y="13" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
@@ -467,7 +467,7 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
               key={a.key}
               type="button"
               onClick={() => setAxis(a.key)}
-              className={`flex flex-1 flex-col items-center gap-1 rounded-full py-1.5 text-[11px] transition-colors ${
+              className={`flex flex-1 flex-col items-center gap-1 rounded-full py-2 text-[12px] transition-colors ${
                 active
                   ? "bg-white/[0.12] text-text-primary"
                   : "text-text-muted hover:text-text-primary"
