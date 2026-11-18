@@ -71,7 +71,7 @@ const AXES: { key: Axis; label: string; icon: JSX.Element }[] = [
 const CHIP_SUB_TABS: { key: ChipSubTab; label: string; icon: JSX.Element }[] = [
   {
     key: "library",
-    label: "라이브러리",
+    label: "도메인",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
         <path
@@ -175,10 +175,24 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
     facetResultType,
     setFacetResultType,
     customResultTypes,
+    runDecomposeChip,
+    chipDecompStatus,
+    runCombine,
+    combineStatus,
+    decomposition,
   } = useIdea();
   const [axis, setAxis] = useState<Axis>("direction");
   const [chipSubTab, setChipSubTab] = useState<ChipSubTab>("library");
   const [chipLibCat, setChipLibCat] = useState<ChipKind | null>(null);
+  // 조합 플로우: 칩 선택 → 분해/확장 선택 → 칩 facet 선택 → 조합 실행.
+  const [picked, setPicked] = useState<{
+    kind: ChipKind | null;
+    text: string;
+    category?: string;
+  } | null>(null);
+  const [combineMethod, setCombineMethod] = useState<
+    "decompose" | "expand" | null
+  >(null);
 
   // Lazy-fetch 유사칩 when the user opens the similar tab with a focused
   // principle and we don't have any recs cached yet. Must stay above the
@@ -259,6 +273,46 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
     else setTopicResultType(rt);
   };
 
+  const pickChip = (
+    kind: ChipKind | null,
+    text: string,
+    category?: string,
+  ) => {
+    setPicked({ kind, text, category });
+    setCombineMethod(null);
+  };
+  const resetCombine = () => {
+    setPicked(null);
+    setCombineMethod(null);
+  };
+  // 조합 대상(주제 쪽 facet): 선택 원리 > 포커스 축의 원리.
+  const topicFacet =
+    !selectedPrinciple && focusedAxis && decomposition?.axisToPrinciple?.[focusedAxis]
+      ? { axis: focusedAxis, principle: decomposition.axisToPrinciple[focusedAxis] }
+      : null;
+  const pickedKind: ChipKind = picked?.kind ?? "object";
+  const pickedKey = picked ? `${pickedKind}::${picked.text}` : null;
+  const chooseMethod = (m: "decompose" | "expand") => {
+    if (!picked) return;
+    setCombineMethod(m);
+    void runDecomposeChip(
+      pickedKind,
+      picked.text,
+      m === "expand" ? topicExpandDirectionId : topicDirectionId,
+    );
+  };
+  const combineWith = (chipFacet: { axis: string; principle: string } | null) => {
+    if (!picked) return;
+    void runCombine({
+      chipKind: picked.kind,
+      chipCategory: picked.category ?? null,
+      chipText: picked.text,
+      chipFacet,
+      topicFacet,
+    });
+    resetCombine();
+  };
+
   const openFullPanel = () => {
     setChipPanelFullScreen(true);
     setChipPanelOpen(true);
@@ -302,7 +356,13 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
             <button
               key={`u-${uc.id}`}
               type="button"
-              onClick={openFullPanel}
+              onClick={() =>
+                pickChip(
+                  uc.kind === "memo" ? null : uc.kind,
+                  uc.name,
+                  uc.kind === "memo" ? "메모" : undefined,
+                )
+              }
               className={`${CHIP_BASE} ${CHIP_INACTIVE}`}
               title={uc.definition}
             >
@@ -313,7 +373,7 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
             <button
               key={c}
               type="button"
-              onClick={openFullPanel}
+              onClick={() => pickChip(chipLibCat, c)}
               className={`${CHIP_BASE} ${CHIP_INACTIVE}`}
             >
               {c}
@@ -367,7 +427,7 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
             <button
               key={`${r.chipText}-${i}`}
               type="button"
-              onClick={openFullPanel}
+              onClick={() => pickChip(null, r.chipText, r.cat)}
               title={r.cat}
               className={`${CHIP_BASE} ${CHIP_INACTIVE}`}
             >
@@ -433,7 +493,7 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
                 <button
                   key={`${r}-${i}`}
                   type="button"
-                  onClick={openFullPanel}
+                  onClick={() => pickChip(null, r)}
                   className={`${CHIP_BASE} ${CHIP_INACTIVE}`}
                 >
                   {r}
@@ -459,7 +519,10 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
           <button
             key={k}
             type="button"
-            onClick={openFullPanel}
+            onClick={() => {
+              const [kind, ...rest] = k.split("::");
+              pickChip(kind as ChipKind, rest.join("::"));
+            }}
             className={`${CHIP_BASE} ${CHIP_INACTIVE}`}
           >
             {k}
@@ -470,7 +533,7 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
   };
 
   const isChipMode = mode === "chip";
-  // 하단 탭 줄: 칩 모드면 라이브러리/유사칩/검색/히스토리, 아니면
+  // 하단 탭 줄: 조합 모드면 도메인/유사칩/검색/히스토리, 아니면
   // 사고방향/렌즈/실행결과. 선택된 탭의 칩들은 위쪽 한 줄에 나열된다.
   const tabs: { key: string; label: string; icon: JSX.Element }[] = isChipMode
     ? CHIP_SUB_TABS
@@ -479,6 +542,7 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
   const onTabClick = (key: string) => {
     if (isChipMode) {
       setChipSubTab(key as ChipSubTab);
+      resetCombine();
       if (key !== "library") setChipLibCat(null);
     } else {
       setAxis(key as Axis);
@@ -507,12 +571,94 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
     </div>
   );
 
+  const BACK_BTN =
+    "shrink-0 rounded-full bg-white/[0.08] px-3 py-2 text-[14px] text-text-secondary hover:bg-white/[0.16] hover:text-text-primary md:py-1 md:text-[11px]";
+  const STEP_BTN =
+    "shrink-0 rounded-full bg-white/[0.16] px-5 py-2 text-[14px] font-medium text-text-primary hover:bg-white/[0.26] md:px-3 md:py-1 md:text-[11px]";
+
+  // 조합 단계 안내 문구
+  const combineGuide = !isChipMode
+    ? null
+    : combineStatus === "loading"
+      ? "조합 중…"
+      : !picked
+        ? "① 조합할 칩을 고르세요"
+        : !combineMethod
+          ? `② '${picked.text}'을(를) 어떻게 펼쳐서 조합할까요?`
+          : `③ 조합할 '${picked.text}'의 facet을 고르세요`;
+
+  const renderCombineFlow = () => {
+    if (!picked) return renderChipContent();
+    if (!combineMethod) {
+      return (
+        <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap">
+          <button type="button" onClick={resetCombine} className={BACK_BTN} aria-label="칩 다시 고르기">
+            ‹
+          </button>
+          <span className={`${CHIP_BASE} ${CHIP_ACTIVE}`}>{picked.text}</span>
+          <button type="button" onClick={() => chooseMethod("decompose")} className={STEP_BTN}>
+            분해
+          </button>
+          <button type="button" onClick={() => chooseMethod("expand")} className={STEP_BTN}>
+            확장
+          </button>
+          <button
+            type="button"
+            onClick={() => combineWith(null)}
+            className={`${CHIP_BASE} ${CHIP_INACTIVE}`}
+          >
+            바로 조합
+          </button>
+        </div>
+      );
+    }
+    const facets = pickedKey ? chipDecompositions[pickedKey] : undefined;
+    const loading = pickedKey ? chipDecompStatus[pickedKey] === "loading" : false;
+    return (
+      <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap">
+        <button
+          type="button"
+          onClick={() => setCombineMethod(null)}
+          className={BACK_BTN}
+          aria-label="분해/확장 다시 고르기"
+        >
+          ‹
+        </button>
+        <span className={`${CHIP_BASE} ${CHIP_ACTIVE}`}>
+          {picked.text} · {combineMethod === "expand" ? "확장" : "분해"}
+        </span>
+        {loading || !facets ? (
+          <span className="px-2 text-[12px] text-text-muted md:text-[11px]">
+            {loading ? "칩 펼치는 중…" : "결과 없음"}
+          </span>
+        ) : (
+          Object.entries(facets).map(([ax, principle]) => (
+            <button
+              key={ax}
+              type="button"
+              title={principle}
+              onClick={() => combineWith({ axis: ax, principle })}
+              className={`${CHIP_BASE} ${CHIP_INACTIVE}`}
+            >
+              {ax}
+            </button>
+          ))
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="mx-auto flex w-full flex-col gap-2 px-3 md:max-w-[560px] md:px-0">
+      {combineGuide && (
+        <div className="px-1 text-[12px] text-text-muted md:text-[11px]">
+          {combineGuide}
+        </div>
+      )}
       {/* Content row — 선택된 탭의 칩 나열 */}
       <div className="min-h-[2.5rem]">
         {isChipMode ? (
-          renderChipContent()
+          renderCombineFlow()
         ) : axis === "direction" ? (
           <DirectionChipRow
             axis={isExpand ? "expand" : "decompose"}

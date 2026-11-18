@@ -55,7 +55,7 @@ const MODES: { key: TopMode; label: string; icon: JSX.Element }[] = [
   },
   {
     key: "chip",
-    label: "칩",
+    label: "조합",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
         <rect x="4" y="4" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
