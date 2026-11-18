@@ -260,35 +260,21 @@ function PageInner() {
           >
             {showTopicShell ? (
               <>
-                <div
-                  className={`shrink-0 overflow-hidden transition-all duration-200 ease-out ${
-                    showTopicControllers
-                      ? "max-h-[20rem] translate-y-0 opacity-100"
-                      : "max-h-0 -translate-y-2 opacity-0 pointer-events-none"
-                  }`}
-                >
-                  <div className="pt-10 pb-2">
-                    <TopBar mode={homeMode} onModeChange={setHomeMode} />
-                  </div>
+                {/* 인풋바는 항상 상단에 남고, 분해/확장/증명 탭만 facet
+                    축/원리 클릭 시 펼쳐진다. */}
+                <div className="shrink-0 pt-10 pb-2">
+                  <TopBar
+                    mode={homeMode}
+                    onModeChange={setHomeMode}
+                    showModes={showTopicControllers}
+                  />
                 </div>
                 {decomposition && (
-                  <div
-                    className={`shrink-0 px-6 pb-2 transition-[padding] duration-200 ${
-                      showTopicControllers ? "pt-1" : "pt-12"
-                    }`}
-                  >
+                  <div className="shrink-0 px-6 pb-2 pt-1">
                     <FacetJourneyHeader />
                   </div>
                 )}
-                <div
-                  className="flex-1 min-h-0 overflow-auto"
-                  style={{
-                    maskImage:
-                      "linear-gradient(to bottom, transparent 0%, black 3%, black 97%, transparent 100%)",
-                    WebkitMaskImage:
-                      "linear-gradient(to bottom, transparent 0%, black 3%, black 97%, transparent 100%)",
-                  }}
-                >
+                <div className="flex-1 min-h-0 overflow-auto">
                   <DecompositionTree />
                 </div>
                 <div

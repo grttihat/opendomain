@@ -403,7 +403,8 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
   };
 
   return (
-    <div className="mx-auto flex w-full flex-col gap-2 px-3 md:max-w-[560px] md:px-0">
+    <div className="mx-auto w-full px-3 md:max-w-[560px] md:px-0">
+    <div className="flex flex-col gap-2 rounded-[28px] bg-white/[0.08] p-3">
       {/* Content area — direction / lens / chip's own composed view */}
       {axis === "chip" ? (
         <div className="flex flex-col gap-1.5">
@@ -459,7 +460,7 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
       )}
 
       {/* Axis selector */}
-      <div className="flex gap-1 rounded-[28px] bg-white/[0.08] p-2">
+      <div className="flex gap-1">
         {AXES.map((a) => {
           const active = axis === a.key;
           return (
@@ -479,6 +480,7 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
           );
         })}
       </div>
+    </div>
     </div>
   );
 }

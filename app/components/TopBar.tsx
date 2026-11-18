@@ -53,28 +53,18 @@ const MODES: { key: TopMode; label: string; icon: JSX.Element }[] = [
       </svg>
     ),
   },
-  {
-    key: "memo",
-    label: "메모",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
-        <path
-          d="M4 20h4L19 9l-4-4L4 16v4z"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinejoin="round"
-        />
-      </svg>
-    ),
-  },
 ];
 
 export default function TopBar({
   mode,
   onModeChange,
+  showModes = true,
 }: {
   mode: TopMode | null;
   onModeChange: (m: TopMode | null) => void;
+  // false면 인풋바만 남기고 분해/확장/증명 탭 줄을 접는다 — facet 축/원리
+  // 클릭 시 펼쳐진다.
+  showModes?: boolean;
 }) {
   const {
     topicText,
@@ -273,7 +263,7 @@ export default function TopBar({
 
   return (
     <div className="mx-auto w-full px-3 md:max-w-[560px] md:px-0">
-    <div className="flex flex-col gap-2 rounded-[28px] bg-white/[0.08] p-3">
+    <div className="flex flex-col rounded-[28px] bg-white/[0.08] p-3">
       <div className="rounded-full bg-black/70 py-1.5 pl-4 pr-1.5">
         <form
           onSubmit={onFormSubmit}
@@ -385,7 +375,14 @@ export default function TopBar({
         </form>
       </div>
 
-      <div className="flex gap-1">
+      <div
+        className={`overflow-hidden transition-all duration-200 ease-out ${
+          showModes
+            ? "max-h-24 opacity-100"
+            : "max-h-0 opacity-0 pointer-events-none"
+        }`}
+      >
+      <div className="flex gap-1 pt-2">
         {MODES.map((m) => {
           const active = mode === m.key;
           // 메모 버튼은 저장할 축/주제가 있어야 활성. 홈(아무것도 없음)에서는
@@ -413,6 +410,7 @@ export default function TopBar({
             </button>
           );
         })}
+      </div>
       </div>
     </div>
     </div>

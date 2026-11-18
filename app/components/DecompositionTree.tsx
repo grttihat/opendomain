@@ -245,14 +245,34 @@ export function FacetJourneyHeader() {
       });
     }
   }
-  const current = entries[entries.length - 1];
+  // 한 줄 스트립: 이전 화살표 + 직전 내역 텍스트만. 주제 단계(이전 없음)
+  // 에서는 주제 자체를 표시한다.
+  const prev =
+    entries.length >= 2 ? entries[entries.length - 2] : entries[0];
   return (
     <>
-      <AncestorStack
-        ancestors={entries.slice(0, -1)}
-        current={current}
+      <button
+        type="button"
         onClick={() => setOpen(true)}
-      />
+        title={prev.title}
+        className="flex w-full min-w-0 items-center gap-1.5 py-1 text-left text-[13px] text-text-secondary transition-colors hover:text-text-primary md:text-[12px]"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          className="h-4 w-4 shrink-0"
+          aria-hidden
+        >
+          <path
+            d="M15 6l-6 6 6 6"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        <span className="truncate">{prev.shortTitle ?? prev.title}</span>
+      </button>
       {open && (
         <FullFacetJourneyView journey={entries} onClose={() => setOpen(false)} />
       )}
