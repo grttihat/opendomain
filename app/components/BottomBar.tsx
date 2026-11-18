@@ -14,6 +14,7 @@ import {
   type ChipKind,
 } from "@/lib/constants";
 import { chipSearchModeLabel, type ChipSearchMode } from "@/lib/prompts";
+import type { SelectedLens } from "@/lib/lenses";
 import type { TopMode } from "./TopBar";
 
 type Axis = "direction" | "lens" | "result";
@@ -184,15 +185,24 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
   const [axis, setAxis] = useState<Axis>("direction");
   const [chipSubTab, setChipSubTab] = useState<ChipSubTab>("library");
   const [chipLibCat, setChipLibCat] = useState<ChipKind | null>(null);
-  // 조합 플로우: 칩 선택 → 분해/확장 선택 → 칩 facet 선택 → 조합 실행.
+  // 조합 플로우: 칩 선택 → (분해/확장 + 사고방향/렌즈/실행결과 설정) →
+  // 펼치기 → 칩 facet 선택 → 조합 실행.
   const [picked, setPicked] = useState<{
     kind: ChipKind | null;
     text: string;
     category?: string;
   } | null>(null);
-  const [combineMethod, setCombineMethod] = useState<
-    "decompose" | "expand" | null
-  >(null);
+  const [comboStage, setComboStage] = useState<"config" | "facets">("config");
+  const [comboMethod, setComboMethod] = useState<"decompose" | "expand">(
+    "decompose",
+  );
+  const [comboDirection, setComboDirection] = useState<string | null>(null);
+  const [comboLens, setComboLens] = useState<SelectedLens | null | undefined>(
+    undefined,
+  );
+  const [comboResult, setComboResult] = useState<
+    BigCategory | null | undefined
+  >(undefined);
 
   // Lazy-fetch 유사칩 when the user opens the similar tab with a focused
   // principle and we don't have any recs cached yet. Must stay above the
@@ -279,12 +289,24 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
     category?: string,
   ) => {
     setPicked({ kind, text, category });
-    setCombineMethod(null);
+    setComboStage("config");
+    setComboMethod("decompose");
+    setComboDirection(null);
+    setComboLens(undefined);
+    setComboResult(undefined);
+    setAxis("direction");
   };
   const resetCombine = () => {
     setPicked(null);
-    setCombineMethod(null);
+    setComboStage("config");
   };
+  // 조합 설정 — 유저가 고르기 전엔 현재 스코프 값을 기본으로 보여준다.
+  const comboDirectionId =
+    comboDirection ??
+    (comboMethod === "expand" ? topicExpandDirectionId : topicDirectionId);
+  const comboLensValue = comboLens !== undefined ? comboLens : currentLens;
+  const comboResultValue =
+    comboResult !== undefined ? comboResult : currentResultType;
   // 조합 대상(주제 쪽 facet): 선택 원리 > 포커스 축의 원리.
   const topicFacet =
     !selectedPrinciple && focusedAxis && decomposition?.axisToPrinciple?.[focusedAxis]
@@ -292,13 +314,15 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
       : null;
   const pickedKind: ChipKind = picked?.kind ?? "object";
   const pickedKey = picked ? `${pickedKind}::${picked.text}` : null;
-  const chooseMethod = (m: "decompose" | "expand") => {
+  const unfoldChip = () => {
     if (!picked) return;
-    setCombineMethod(m);
+    setComboStage("facets");
     void runDecomposeChip(
       pickedKind,
       picked.text,
-      m === "expand" ? topicExpandDirectionId : topicDirectionId,
+      comboDirectionId,
+      comboLensValue ?? null,
+      comboResultValue ?? null,
     );
   };
   const combineWith = (chipFacet: { axis: string; principle: string } | null) => {
@@ -309,6 +333,7 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
       chipText: picked.text,
       chipFacet,
       topicFacet,
+      lens: comboLensValue ?? null,
     });
     resetCombine();
   };
@@ -533,28 +558,39 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
   };
 
   const isChipMode = mode === "chip";
-  // 하단 탭 줄: 조합 모드면 도메인/유사칩/검색/히스토리, 아니면
-  // 사고방향/렌즈/실행결과. 선택된 탭의 칩들은 위쪽 한 줄에 나열된다.
-  const tabs: { key: string; label: string; icon: JSX.Element }[] = isChipMode
+  // 조합 모드에서 칩을 고른 뒤엔 하단이 그 칩의 분해/확장 설정 화면이 된다.
+  const comboActive = isChipMode && picked !== null;
+  // 하단 탭 줄: 조합 모드(칩 고르기 전)면 도메인/유사칩/검색/히스토리,
+  // 그 외엔 사고방향/렌즈/실행결과. 선택된 탭의 칩들은 위쪽 한 줄에 나열.
+  const showChipTabs = isChipMode && !comboActive;
+  const tabs: { key: string; label: string; icon: JSX.Element }[] = showChipTabs
     ? CHIP_SUB_TABS
     : AXES;
-  const activeTab: string = isChipMode ? chipSubTab : axis;
+  const activeTab: string = showChipTabs
+    ? chipSubTab
+    : comboActive && comboStage === "facets"
+      ? ""
+      : axis;
   const onTabClick = (key: string) => {
-    if (isChipMode) {
+    if (showChipTabs) {
       setChipSubTab(key as ChipSubTab);
-      resetCombine();
       if (key !== "library") setChipLibCat(null);
     } else {
       setAxis(key as Axis);
+      // facet 고르는 중에 설정 탭을 누르면 설정 단계로 되돌아간다.
+      if (comboActive) setComboStage("config");
     }
   };
 
-  const renderResultRow = () => (
+  const renderResultRow = (
+    value: BigCategory | null,
+    onChange: (rt: BigCategory | null) => void,
+  ) => (
     <div className="flex gap-1 overflow-x-auto whitespace-nowrap">
       <button
         type="button"
-        onClick={() => onChangeResultType(null)}
-        className={`${CHIP_BASE} ${currentResultType === null ? CHIP_ACTIVE : CHIP_INACTIVE}`}
+        onClick={() => onChange(null)}
+        className={`${CHIP_BASE} ${value === null ? CHIP_ACTIVE : CHIP_INACTIVE}`}
       >
         없음
       </button>
@@ -562,8 +598,8 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
         <button
           key={cat}
           type="button"
-          onClick={() => onChangeResultType(cat as BigCategory)}
-          className={`${CHIP_BASE} ${currentResultType === cat ? CHIP_ACTIVE : CHIP_INACTIVE}`}
+          onClick={() => onChange(cat as BigCategory)}
+          className={`${CHIP_BASE} ${value === cat ? CHIP_ACTIVE : CHIP_INACTIVE}`}
         >
           {cat}
         </button>
@@ -571,115 +607,138 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
     </div>
   );
 
-  const BACK_BTN =
-    "shrink-0 rounded-full bg-white/[0.08] px-3 py-2 text-[14px] text-text-secondary hover:bg-white/[0.16] hover:text-text-primary md:py-1 md:text-[11px]";
-  const STEP_BTN =
-    "shrink-0 rounded-full bg-white/[0.16] px-5 py-2 text-[14px] font-medium text-text-primary hover:bg-white/[0.26] md:px-3 md:py-1 md:text-[11px]";
-
-  // 조합 단계 안내 문구
-  const combineGuide = !isChipMode
-    ? null
-    : combineStatus === "loading"
-      ? "조합 중…"
-      : !picked
-        ? "① 조합할 칩을 고르세요"
-        : !combineMethod
-          ? `② '${picked.text}'을(를) 어떻게 펼쳐서 조합할까요?`
-          : `③ 조합할 '${picked.text}'의 facet을 고르세요`;
-
-  const renderCombineFlow = () => {
-    if (!picked) return renderChipContent();
-    if (!combineMethod) {
+  // 사고방향/렌즈/실행결과 칩 줄 — 일반 모드는 스코프 값에, 조합 설정
+  // 단계는 조합 전용 값에 바인딩.
+  const renderSettingRow = (combo: boolean) => {
+    if (axis === "direction") {
+      const method = combo ? comboMethod : isExpand ? "expand" : "decompose";
       return (
-        <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap">
-          <button type="button" onClick={resetCombine} className={BACK_BTN} aria-label="칩 다시 고르기">
-            ‹
-          </button>
-          <span className={`${CHIP_BASE} ${CHIP_ACTIVE}`}>{picked.text}</span>
-          <button type="button" onClick={() => chooseMethod("decompose")} className={STEP_BTN}>
-            분해
-          </button>
-          <button type="button" onClick={() => chooseMethod("expand")} className={STEP_BTN}>
-            확장
-          </button>
-          <button
-            type="button"
-            onClick={() => combineWith(null)}
-            className={`${CHIP_BASE} ${CHIP_INACTIVE}`}
-          >
-            바로 조합
-          </button>
-        </div>
+        <DirectionChipRow
+          axis={method}
+          currentDirection={combo ? comboDirectionId : currentDirection}
+          customDirections={customDirections}
+          onChangeDirection={combo ? setComboDirection : onChangeDirection}
+          addCustomDirection={addCustomDirection}
+          removeCustomDirection={removeCustomDirection}
+          hideLabel
+          singleLine
+        />
       );
     }
-    const facets = pickedKey ? chipDecompositions[pickedKey] : undefined;
-    const loading = pickedKey ? chipDecompStatus[pickedKey] === "loading" : false;
+    if (axis === "lens") {
+      return (
+        <FacetLensRow
+          currentLens={combo ? comboLensValue ?? null : currentLens}
+          onChangeLens={combo ? setComboLens : onChangeLens}
+          hideLabel
+          singleLine
+        />
+      );
+    }
+    return combo
+      ? renderResultRow(comboResultValue ?? null, setComboResult)
+      : renderResultRow(currentResultType, onChangeResultType);
+  };
+
+  const BACK_BTN =
+    "shrink-0 rounded-full bg-white/[0.08] px-3 py-2 text-[14px] text-text-secondary hover:bg-white/[0.16] hover:text-text-primary md:py-1 md:text-[11px]";
+  const SEG_BASE =
+    "shrink-0 rounded-full px-4 py-2 text-[14px] transition-colors md:px-3 md:py-1 md:text-[11px]";
+
+  // 조합 헤더: [‹] [칩] [분해|확장] … [펼치기 / 조합 중]
+  const renderComboHeader = () => {
+    if (!picked) return null;
+    const busy = combineStatus === "loading";
     return (
       <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap">
         <button
           type="button"
-          onClick={() => setCombineMethod(null)}
+          onClick={() =>
+            comboStage === "facets" ? setComboStage("config") : resetCombine()
+          }
           className={BACK_BTN}
-          aria-label="분해/확장 다시 고르기"
+          aria-label="이전 단계"
         >
           ‹
         </button>
-        <span className={`${CHIP_BASE} ${CHIP_ACTIVE}`}>
-          {picked.text} · {combineMethod === "expand" ? "확장" : "분해"}
-        </span>
-        {loading || !facets ? (
-          <span className="px-2 text-[12px] text-text-muted md:text-[11px]">
-            {loading ? "칩 펼치는 중…" : "결과 없음"}
-          </span>
-        ) : (
-          Object.entries(facets).map(([ax, principle]) => (
+        <span className={`${CHIP_BASE} ${CHIP_ACTIVE}`}>{picked.text}</span>
+        <div className="flex shrink-0 gap-0.5 rounded-full bg-white/[0.06] p-0.5">
+          {(["decompose", "expand"] as const).map((m) => (
             <button
-              key={ax}
+              key={m}
               type="button"
-              title={principle}
-              onClick={() => combineWith({ axis: ax, principle })}
-              className={`${CHIP_BASE} ${CHIP_INACTIVE}`}
+              onClick={() => {
+                setComboMethod(m);
+                setComboDirection(null);
+                setComboStage("config");
+              }}
+              className={`${SEG_BASE} ${
+                comboMethod === m
+                  ? "bg-white/[0.18] text-text-primary"
+                  : "text-text-muted hover:text-text-primary"
+              }`}
             >
-              {ax}
+              {m === "expand" ? "확장" : "분해"}
             </button>
-          ))
-        )}
+          ))}
+        </div>
+        <div className="flex-1" />
+        {comboStage === "config" ? (
+          <button
+            type="button"
+            onClick={unfoldChip}
+            className="shrink-0 rounded-full bg-white/[0.22] px-4 py-2 text-[14px] font-medium text-text-primary hover:bg-white/[0.3] md:px-3 md:py-1 md:text-[11px]"
+          >
+            펼치기 →
+          </button>
+        ) : busy ? (
+          <span className="shrink-0 px-2 text-[12px] text-text-muted md:text-[11px]">
+            조합 중…
+          </span>
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderComboFacets = () => {
+    const facets = pickedKey ? chipDecompositions[pickedKey] : undefined;
+    const loading = pickedKey ? chipDecompStatus[pickedKey] === "loading" : false;
+    if (loading || !facets) {
+      return (
+        <div className="flex items-center py-2 text-[12px] text-text-muted md:text-[11px]">
+          {loading ? "칩 펼치는 중…" : "결과 없음"}
+        </div>
+      );
+    }
+    return (
+      <div className="flex gap-1 overflow-x-auto whitespace-nowrap">
+        {Object.entries(facets).map(([ax, principle]) => (
+          <button
+            key={ax}
+            type="button"
+            title={principle}
+            onClick={() => combineWith({ axis: ax, principle })}
+            className={`${CHIP_BASE} ${CHIP_INACTIVE}`}
+          >
+            {ax}
+          </button>
+        ))}
       </div>
     );
   };
 
   return (
     <div className="mx-auto flex w-full flex-col gap-2 px-3 md:max-w-[560px] md:px-0">
-      {combineGuide && (
-        <div className="px-1 text-[12px] text-text-muted md:text-[11px]">
-          {combineGuide}
-        </div>
-      )}
+      {comboActive && renderComboHeader()}
       {/* Content row — 선택된 탭의 칩 나열 */}
       <div className="min-h-[2.5rem]">
-        {isChipMode ? (
-          renderCombineFlow()
-        ) : axis === "direction" ? (
-          <DirectionChipRow
-            axis={isExpand ? "expand" : "decompose"}
-            currentDirection={currentDirection}
-            customDirections={customDirections}
-            onChangeDirection={onChangeDirection}
-            addCustomDirection={addCustomDirection}
-            removeCustomDirection={removeCustomDirection}
-            hideLabel
-            singleLine
-          />
-        ) : axis === "lens" ? (
-          <FacetLensRow
-            currentLens={currentLens}
-            onChangeLens={onChangeLens}
-            hideLabel
-            singleLine
-          />
-        ) : (
-          renderResultRow()
-        )}
+        {showChipTabs
+          ? renderChipContent()
+          : comboActive
+            ? comboStage === "facets"
+              ? renderComboFacets()
+              : renderSettingRow(true)
+            : renderSettingRow(false)}
       </div>
 
       {/* Tab selector */}

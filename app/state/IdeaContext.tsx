@@ -48,6 +48,8 @@ export type CombineInput = {
   chipReason?: string | null;
   chipFacet?: { axis: string; principle: string } | null;
   topicFacet?: { axis: string; principle: string } | null;
+  // 조합 전용 렌즈. 생략 시 전역 selectedLens.
+  lens?: SelectedLens | null;
 };
 
 export type CombinedIdeaRecord = CombinedIdea & {
@@ -2613,7 +2615,7 @@ export function IdeaProvider({ children }: { children: ReactNode }) {
             chipFacets,
             chipCategory: input.chipCategory ?? null,
             chipReason: input.chipReason ?? null,
-            lens: selectedLens,
+            lens: input.lens !== undefined ? input.lens : selectedLens,
           }),
         });
         const data = (await res.json()) as {
