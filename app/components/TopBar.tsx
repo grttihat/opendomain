@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { principleKey, useIdea } from "../state/IdeaContext";
 
-export type TopMode = "decompose" | "expand" | "verify" | "memo";
+export type TopMode = "decompose" | "expand" | "verify" | "chip" | "memo";
 
 const MODES: { key: TopMode; label: string; icon: JSX.Element }[] = [
   {
@@ -50,6 +50,18 @@ const MODES: { key: TopMode; label: string; icon: JSX.Element }[] = [
           strokeLinecap="round"
           strokeLinejoin="round"
         />
+      </svg>
+    ),
+  },
+  {
+    key: "chip",
+    label: "칩",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+        <rect x="4" y="4" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
+        <rect x="13" y="4" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
+        <rect x="4" y="13" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
+        <rect x="13" y="13" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
       </svg>
     ),
   },
@@ -264,7 +276,7 @@ export default function TopBar({
   return (
     <div className="mx-auto w-full px-3 md:max-w-[560px] md:px-0">
     <div className="flex flex-col rounded-[28px] bg-white/[0.08] p-3">
-      <div className="rounded-full bg-black/70 py-1.5 pl-4 pr-1.5">
+      <div className="rounded-full bg-black/70 py-2.5 pl-4 pr-2">
         <form
           onSubmit={onFormSubmit}
           className="flex flex-wrap items-center gap-1.5"

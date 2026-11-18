@@ -9,12 +9,14 @@ import {
   kPsychologyPool,
   kObjectPool,
   chipKindLabel,
+  kBigCategories,
+  type BigCategory,
   type ChipKind,
 } from "@/lib/constants";
 import { chipSearchModeLabel, type ChipSearchMode } from "@/lib/prompts";
 import type { TopMode } from "./TopBar";
 
-type Axis = "direction" | "lens" | "chip";
+type Axis = "direction" | "lens" | "result";
 type ChipSubTab = "library" | "similar" | "search" | "history";
 
 const AXES: { key: Axis; label: string; icon: JSX.Element }[] = [
@@ -48,24 +50,75 @@ const AXES: { key: Axis; label: string; icon: JSX.Element }[] = [
     ),
   },
   {
-    key: "chip",
-    label: "칩",
+    key: "result",
+    label: "실행결과",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
-        <rect x="4" y="4" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
-        <rect x="13" y="4" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
-        <rect x="4" y="13" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
-        <rect x="13" y="13" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
+        <path
+          d="M5 12l4 4 10-10"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path d="M5 20h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
     ),
   },
 ];
 
-const CHIP_SUB_TABS: { key: ChipSubTab; label: string }[] = [
-  { key: "library", label: "라이브러리" },
-  { key: "similar", label: "유사칩" },
-  { key: "search", label: "검색" },
-  { key: "history", label: "히스토리" },
+// 상단 모드가 "칩"일 때 하단 탭 줄을 대체하는 하위 카테고리.
+const CHIP_SUB_TABS: { key: ChipSubTab; label: string; icon: JSX.Element }[] = [
+  {
+    key: "library",
+    label: "라이브러리",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+        <path
+          d="M5 4h4v16H5zM10 4h4v16h-4zM15.5 5l3.5-1 2 15-3.5 1z"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    key: "similar",
+    label: "유사칩",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+        <circle cx="9" cy="12" r="5" stroke="currentColor" strokeWidth="1.5" />
+        <circle cx="15" cy="12" r="5" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    ),
+  },
+  {
+    key: "search",
+    label: "검색",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+        <circle cx="11" cy="11" r="6" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M20 20l-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    key: "history",
+    label: "히스토리",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+        <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.5" />
+        <path
+          d="M12 8v4l3 2"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
 ];
 
 const CHIP_KINDS: ChipKind[] = ["industry", "psychology", "object"];
@@ -117,6 +170,11 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
     chipSearchStatus,
     runChipSearch,
     chipDecompositions,
+    topicResultType,
+    setTopicResultType,
+    facetResultType,
+    setFacetResultType,
+    customResultTypes,
   } = useIdea();
   const [axis, setAxis] = useState<Axis>("direction");
   const [chipSubTab, setChipSubTab] = useState<ChipSubTab>("library");
@@ -127,8 +185,7 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
   // early return — React hook order is fixed across renders.
   useEffect(() => {
     if (
-      mode === null ||
-      axis !== "chip" ||
+      mode !== "chip" ||
       chipSubTab !== "similar" ||
       !selectedPrinciple
     ) {
@@ -143,7 +200,6 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
     );
   }, [
     mode,
-    axis,
     chipSubTab,
     selectedPrinciple,
     chipRecommendations,
@@ -190,6 +246,17 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
     if (scopePk) setPrincipleLens(scopePk, lens);
     else if (focusedAxis) setFacetLens(focusedAxis, lens);
     else setSelectedLens(lens);
+  };
+
+  // 실행결과: 원리/축 스코프는 runDecomposeFacet이 읽는 facetResultType[axis]
+  // 에, 주제 스코프는 commitPending이 읽는 topicResultType에 바인딩.
+  const resultAxis = selectedPrinciple?.axis ?? focusedAxis;
+  const currentResultType: BigCategory | null = resultAxis
+    ? facetResultType[resultAxis] ?? topicResultType ?? null
+    : topicResultType;
+  const onChangeResultType = (rt: BigCategory | null) => {
+    if (resultAxis) setFacetResultType(resultAxis, rt);
+    else setTopicResultType(rt);
   };
 
   const openFullPanel = () => {
@@ -402,72 +469,82 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
     );
   };
 
-  return (
-    <div className="mx-auto w-full px-3 md:max-w-[560px] md:px-0">
-    <div className="flex flex-col gap-2 rounded-[28px] bg-white/[0.08] p-3">
-      {/* Content area — direction / lens / chip's own composed view */}
-      {axis === "chip" ? (
-        <div className="flex flex-col gap-1.5">
-          {/* chip sub-tab row */}
-          <div className="flex gap-1 overflow-x-auto whitespace-nowrap">
-            {CHIP_SUB_TABS.map((t) => {
-              const active = chipSubTab === t.key;
-              return (
-                <button
-                  key={t.key}
-                  type="button"
-                  onClick={() => {
-                    setChipSubTab(t.key);
-                    if (t.key !== "library") setChipLibCat(null);
-                  }}
-                  className={`shrink-0 rounded-full px-4 py-1.5 text-[12px] transition-colors whitespace-nowrap md:px-3 md:py-1 md:text-[11px] ${
-                    active
-                      ? "bg-white/[0.18] text-text-primary"
-                      : "bg-white/[0.04] text-text-muted hover:bg-white/[0.1] hover:text-text-primary"
-                  }`}
-                >
-                  {t.label}
-                </button>
-              );
-            })}
-          </div>
-          {/* chip content row */}
-          <div className="min-h-[2.5rem]">{renderChipContent()}</div>
-        </div>
-      ) : (
-        <div className="min-h-[2.5rem]">
-          {axis === "direction" && (
-            <DirectionChipRow
-              axis={isExpand ? "expand" : "decompose"}
-              currentDirection={currentDirection}
-              customDirections={customDirections}
-              onChangeDirection={onChangeDirection}
-              addCustomDirection={addCustomDirection}
-              removeCustomDirection={removeCustomDirection}
-              hideLabel
-              singleLine
-            />
-          )}
-          {axis === "lens" && (
-            <FacetLensRow
-              currentLens={currentLens}
-              onChangeLens={onChangeLens}
-              hideLabel
-              singleLine
-            />
-          )}
-        </div>
-      )}
+  const isChipMode = mode === "chip";
+  // 하단 탭 줄: 칩 모드면 라이브러리/유사칩/검색/히스토리, 아니면
+  // 사고방향/렌즈/실행결과. 선택된 탭의 칩들은 위쪽 한 줄에 나열된다.
+  const tabs: { key: string; label: string; icon: JSX.Element }[] = isChipMode
+    ? CHIP_SUB_TABS
+    : AXES;
+  const activeTab: string = isChipMode ? chipSubTab : axis;
+  const onTabClick = (key: string) => {
+    if (isChipMode) {
+      setChipSubTab(key as ChipSubTab);
+      if (key !== "library") setChipLibCat(null);
+    } else {
+      setAxis(key as Axis);
+    }
+  };
 
-      {/* Axis selector */}
-      <div className="flex gap-1">
-        {AXES.map((a) => {
-          const active = axis === a.key;
+  const renderResultRow = () => (
+    <div className="flex gap-1 overflow-x-auto whitespace-nowrap">
+      <button
+        type="button"
+        onClick={() => onChangeResultType(null)}
+        className={`${CHIP_BASE} ${currentResultType === null ? CHIP_ACTIVE : CHIP_INACTIVE}`}
+      >
+        없음
+      </button>
+      {[...kBigCategories, ...customResultTypes].map((cat) => (
+        <button
+          key={cat}
+          type="button"
+          onClick={() => onChangeResultType(cat as BigCategory)}
+          className={`${CHIP_BASE} ${currentResultType === cat ? CHIP_ACTIVE : CHIP_INACTIVE}`}
+        >
+          {cat}
+        </button>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="mx-auto flex w-full flex-col gap-2 px-3 md:max-w-[560px] md:px-0">
+      {/* Content row — 선택된 탭의 칩 나열 */}
+      <div className="min-h-[2.5rem]">
+        {isChipMode ? (
+          renderChipContent()
+        ) : axis === "direction" ? (
+          <DirectionChipRow
+            axis={isExpand ? "expand" : "decompose"}
+            currentDirection={currentDirection}
+            customDirections={customDirections}
+            onChangeDirection={onChangeDirection}
+            addCustomDirection={addCustomDirection}
+            removeCustomDirection={removeCustomDirection}
+            hideLabel
+            singleLine
+          />
+        ) : axis === "lens" ? (
+          <FacetLensRow
+            currentLens={currentLens}
+            onChangeLens={onChangeLens}
+            hideLabel
+            singleLine
+          />
+        ) : (
+          renderResultRow()
+        )}
+      </div>
+
+      {/* Tab selector */}
+      <div className="flex gap-1 rounded-[28px] bg-white/[0.08] p-2">
+        {tabs.map((a) => {
+          const active = activeTab === a.key;
           return (
             <button
               key={a.key}
               type="button"
-              onClick={() => setAxis(a.key)}
+              onClick={() => onTabClick(a.key)}
               className={`flex flex-1 flex-col items-center gap-1 rounded-full py-1.5 text-[11px] transition-colors ${
                 active
                   ? "bg-white/[0.12] text-text-primary"
@@ -480,7 +557,6 @@ export default function BottomBar({ mode }: { mode: TopMode | null }) {
           );
         })}
       </div>
-    </div>
     </div>
   );
 }
