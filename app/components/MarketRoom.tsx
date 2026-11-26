@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useIdea } from "../state/IdeaContext";
 import { apiPath } from "@/lib/apiPath";
 import { simulate, type MarketSpec, type Npc } from "@/lib/sim/market";
+import Village2D from "./Village2D";
 
 // 가상 시장 — 아이디어 하나로 NPC 고객 수백 명의 시장을 만들고, 몇 주치
 // 구매·사용·이탈·입소문을 빠르게 돌려본다. LLM은 시장 설정을 만들 때 한
@@ -69,6 +70,7 @@ export default function MarketRoom({
   const [reliability, setReliability] = useState<number | null>(null);
   const [pickedWeek, setPickedWeek] = useState<number | null>(null);
   const [npc, setNpc] = useState<Npc | null>(null);
+  const [view, setView] = useState<"village" | "report">("village");
 
   useEffect(() => {
     if (open && !spec) setIdea(initialIdea);
@@ -216,6 +218,38 @@ export default function MarketRoom({
                 </label>
               </Section>
 
+              {/* 보기 전환 */}
+              <div className="flex gap-1 rounded-full bg-white/[0.06] p-1">
+                {(
+                  [
+                    { k: "village", label: "마을" },
+                    { k: "report", label: "리포트" },
+                  ] as const
+                ).map((t) => (
+                  <button
+                    key={t.k}
+                    type="button"
+                    onClick={() => setView(t.k)}
+                    className={`flex-1 rounded-full py-2 text-[13px] transition-colors ${
+                      view === t.k
+                        ? "bg-white/[0.18] text-text-primary"
+                        : "text-text-muted hover:text-text-primary"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {view === "village" ? (
+                <Village2D
+                  result={result}
+                  segments={spec.segments.map((s) => s.name)}
+                  productName={spec.product.name}
+                  onPickNpc={setNpc}
+                />
+              ) : (
+              <>
               {/* 핵심 숫자 */}
               <div className="grid grid-cols-2 gap-2">
                 {[
@@ -298,6 +332,9 @@ export default function MarketRoom({
                   ))}
                 </ul>
               </Section>
+
+              </>
+              )}
 
               <p className="px-2 text-[11px] leading-relaxed text-text-muted">
                 AI가 만든 고객은 실제보다 쉽게 사는 경향이 있어요. 구매율 숫자 자체보다
