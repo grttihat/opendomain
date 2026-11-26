@@ -385,6 +385,7 @@ type Ctx = {
 
   combinedIdeas: CombinedIdeaRecord[];
   combineStatus: Status;
+  apiHeaders: () => Record<string, string>;
   runCombine: (input: CombineInput) => Promise<void>;
   clearCombined: () => void;
 
@@ -2802,6 +2803,7 @@ export function IdeaProvider({ children }: { children: ReactNode }) {
       setChipDecompResultType,
       combinedIdeas,
       combineStatus,
+      apiHeaders,
       runCombine,
       clearCombined,
       inputMode,
@@ -2992,6 +2994,7 @@ export function IdeaProvider({ children }: { children: ReactNode }) {
       setChipDecompResultType,
       combinedIdeas,
       combineStatus,
+      apiHeaders,
       runCombine,
       clearCombined,
       inputMode,

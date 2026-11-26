@@ -16,6 +16,7 @@ import LoginModal from "./components/LoginModal";
 import AuthMenu from "./components/AuthMenu";
 import DesktopMenuButton from "./components/DesktopMenuButton";
 import SessionHistoryDrawer from "./components/SessionHistoryDrawer";
+import MarketRoom from "./components/MarketRoom";
 import { IdeaProvider, useIdea } from "./state/IdeaContext";
 
 function PageInner() {
@@ -46,12 +47,14 @@ function PageInner() {
     chipPanelFullScreen,
     setChipPanelFullScreen,
     selectedPrinciple,
+    combinedIdeas,
     selectedAxes,
   } = useIdea();
   const isFreeTier = Boolean(userGeminiKey) && useUserKey;
   const showChipPanel = chipPanelOpen;
   const [businessInfoOpen, setBusinessInfoOpen] = useState(false);
   const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
+  const [marketOpen, setMarketOpen] = useState(false);
   // Topic home mode — null by default so the BottomBar stays hidden until
   // the user explicitly picks 분해 / 확장 / 증명 from the TopBar.
   const [homeMode, setHomeMode] = useState<TopMode | null>(null);
@@ -358,8 +361,26 @@ function PageInner() {
                 </button>
               );
             })}
+            <button
+              onClick={() => setMarketOpen(true)}
+              className="flex h-12 flex-1 items-center justify-center text-[14px] text-text-muted transition-colors hover:text-text-secondary"
+            >
+              <span>가상시장</span>
+            </button>
           </nav>
         </>
+      <MarketRoom
+        open={marketOpen}
+        onClose={() => setMarketOpen(false)}
+        initialIdea={
+          combinedIdeas[0]
+            ? `${combinedIdeas[0].title} — ${combinedIdeas[0].summary}`
+            : selectedPrinciple?.text ??
+              decomposition?.topicText ??
+              pendingTopic ??
+              ""
+        }
+      />
       <AuthMenu />
       <SessionHistoryDrawer
         open={historyDrawerOpen}
