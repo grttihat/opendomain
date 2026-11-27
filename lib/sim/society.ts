@@ -291,7 +291,7 @@ function runWorld(
   people: Person[],
   years: number,
   seed: number,
-  baselineWb: number[][] | null,
+  refWb: number[] | null, // 취임 직전의 삶 (null이면 이 세계의 1년차를 기준으로)
   essentialRatio: number | null, // null이면 1년차에서 보정
 ): WorldOut {
   // 공통 난수: 같은 사람은 같은 해·같은 사건에 대해 두 세계에서 같은 운을 갖는다.
@@ -316,6 +316,7 @@ function runWorld(
   const reemployed: number[][] = ps.map(() => []);
   let emigrants = 0;
   let essentialR = essentialRatio ?? 0;
+  let ref = refWb;
   let automated = 0; // 자동화가 만들어내는 연간 생산 (만원) — 자본 소유자에게 돌아감
 
   for (let y = 1; y <= years; y++) {
@@ -388,8 +389,15 @@ function runWorld(
       // 작게(핀란드·알래스카 실험에서 고용 감소가 거의 없었음).
       const probeTax = incomeTax(p.base, median, lv) / Math.max(1, p.base);
       const keep = 1 - probeTax;
+      // 복지 함정: 일해서 손에 쥐는 돈이 최저생활 보장선보다 적으면, 더 벌어도
+      // 보충분이 그만큼 줄어서 일할 이유가 사라진다 (실효 한계세율 100%).
+      const trapped = clamp((floor - (p.base * keep + BI)) / Math.max(1, floor), 0, 1);
       const effort = p.employed
-        ? clamp(0.85 + 0.3 * (keep - 0.75) - 0.03 * (BI / median) + (luck(i, y, 4) * 2 - 1) * 0.05, 0.6, 1.1)
+        ? clamp(
+            0.85 + 0.3 * (keep - 0.75) - 0.03 * (BI / median) - 0.3 * trapped + (luck(i, y, 4) * 2 - 1) * 0.05,
+            0.5,
+            1.1,
+          )
         : 0;
 
       // 창업: 성향 × 창업 환경 × 이익을 가져갈 수 있는 정도
@@ -497,16 +505,16 @@ function runWorld(
     for (const i of alive) ps[i].base *= 1 + growth + (luck(i, y, 9) * 2 - 1) * 0.04;
     automated *= 1 + growth;
 
-    // 6) 이민: 현재 사회에서보다 확실히 나빠졌고, 떠날 능력이 있으면
-    if (baselineWb) {
-      for (const i of alive) {
-        const p = ps[i];
-        const gap = (baselineWb[y - 1]?.[i] ?? wbRow[i]) - wbRow[i];
-        if (gap > 0.04 && luck(i, y, 10) < p.mobility * (1 - EXIT_BARRIER) * (gap - 0.02) * 0.6) {
-          p.gone = true;
-          gone[i] = y;
-          emigrants++;
-        }
+    // 6) 이민: 평행세계와 비교하지 않는다. 본인이 겪은 것 — 예전보다 삶이 확실히
+    // 나빠졌거나, 세금 부담이 다른 나라 수준(약 40%)보다 무거울 때 — 과 떠날 능력으로.
+    if (!ref) ref = wbRow.slice();
+    for (const i of alive) {
+      const p = ps[i];
+      const push = Math.max(0, (ref[i] ?? wbRow[i]) - wbRow[i]) + 0.5 * Math.max(0, effTax[i] - 0.4);
+      if (push > 0.04 && luck(i, y, 10) < p.mobility * (1 - EXIT_BARRIER) * (push - 0.02) * 0.6) {
+        p.gone = true;
+        gone[i] = y;
+        emigrants++;
       }
     }
 
@@ -531,6 +539,68 @@ function runWorld(
     wellbeing.push(wbRow);
   }
   return { stats, disposable, wellbeing, gone, founded, evaded, unemployed, aiDisplaced, reemployed, essentialRatio: essentialR };
+}
+
+// 정부 평가 — 평행세계("다른 제도였다면")를 모른다. 시민이 실제로 아는 것만 쓴다:
+//   내 삶: 취임 직전 대비 + 작년 대비 (최근 변화에 더 민감)
+//   이웃·동료: 같은 계층 사람들의 형편
+//   나라 경제: 실업률이 늘었나
+//   성향: 원래 이 정부에 호의적인지, 그리고 취임 초 허니문
+type Stance = "support" | "neutral" | "oppose";
+function judge(
+  w: WorldOut,
+  ref: number[],
+  clsOf: string[],
+  lean: number[],
+): { stance: Stance[][]; support: number[]; oppose: number[] } {
+  const n = clsOf.length;
+  const years = w.stats.length;
+  const stance: Stance[][] = Array.from({ length: n }, () => []);
+  const support: number[] = [];
+  const oppose: number[] = [];
+  const unemp0 = w.stats[0]?.unemployment ?? 0;
+  const mood: number[] = new Array(n).fill(NaN); // 지난 평가가 쌓인 관성
+  for (let y = 1; y <= years; y++) {
+    const row = w.wellbeing[y - 1];
+    const prevRow = w.wellbeing[y - 2];
+    // 계층별 평균 변화 (취임 직전 대비)
+    const sum = new Map<string, { s: number; k: number }>();
+    for (let i = 0; i < n; i++) {
+      if (!Number.isFinite(row[i])) continue;
+      const e = sum.get(clsOf[i]) ?? { s: 0, k: 0 };
+      e.s += row[i] - (ref[i] ?? row[i]);
+      e.k++;
+      sum.set(clsOf[i], e);
+    }
+    const nation = -0.25 * (w.stats[y - 1].unemployment - unemp0);
+    const honeymoon = 0.015 * Math.max(0, 1 - (y - 1) / 3);
+    let sup = 0;
+    let opp = 0;
+    let alive = 0;
+    for (let i = 0; i < n; i++) {
+      const goneY = w.gone[i];
+      if (goneY !== null && goneY < y) {
+        stance[i].push("oppose");
+        continue;
+      }
+      alive++;
+      const wb = row[i];
+      const me = 0.35 * (wb - (ref[i] ?? wb)) + 0.15 * (prevRow && Number.isFinite(prevRow[i]) ? wb - prevRow[i] : 0);
+      const pe = sum.get(clsOf[i]);
+      const peers = pe ? 0.2 * (pe.s / Math.max(1, pe.k)) : 0;
+      const raw = me + peers + nation + lean[i] + honeymoon;
+      // 지지율은 한 해 사건으로 뒤집히지 않는다 — 올해 인상 절반, 지난 평가 절반
+      const a = Number.isFinite(mood[i]) ? 0.5 * mood[i] + 0.5 * raw : raw;
+      mood[i] = a;
+      const st: Stance = a > 0.01 ? "support" : a < -0.01 ? "oppose" : "neutral";
+      stance[i].push(st);
+      if (st === "support") sup++;
+      if (st === "oppose") opp++;
+    }
+    support.push(sup / Math.max(1, alive));
+    oppose.push(opp / Math.max(1, alive));
+  }
+  return { stance, support, oppose };
 }
 
 export function simulateSociety(
@@ -586,7 +656,12 @@ export function simulateSociety(
   // 같은 사람들, 같은 운(seed), 같은 AI 충격으로 두 세계를 산다.
   const sched = opts.schedule && opts.schedule.length > 0 ? opts.schedule : [spec.policy];
   const base = runWorld([spec.baseline], ai, people, years, seed + 1, null, null);
-  const pol = runWorld(sched, ai, people, years, seed + 1, base.wellbeing, base.essentialRatio);
+  const ref = base.wellbeing[0] ?? [];
+  const pol = runWorld(sched, ai, people, years, seed + 1, ref, base.essentialRatio);
+  const lean = people.map(() => (rand() * 2 - 1) * 0.03); // 원래 정부에 호의적인지 (사람마다 고정)
+  const clsOf = people.map((p) => p.cls.name);
+  const baseStance = judge(base, ref, clsOf, lean);
+  const polStance = judge(pol, ref, clsOf, lean);
 
   const citizens: Citizen[] = people.map((p, i) => ({
     id: i,
@@ -610,26 +685,16 @@ export function simulateSociety(
     reemployedYears: pol.reemployed[i],
   }));
 
-  // 지지/반대: 같은 사람이 현재 사회에서 살았을 때보다 나은가
-  for (let y = 1; y <= years; y++) {
-    let sup = 0;
-    let opp = 0;
-    let alive = 0;
-    for (const c of citizens) {
-      if (c.emigratedYear !== null && c.emigratedYear < y) {
-        c.stance.push("oppose");
-        continue;
-      }
-      alive++;
-      const d = c.wellbeing[y - 1] - c.baseWellbeing[y - 1];
-      const st = d > 0.015 ? "support" : d < -0.015 ? "oppose" : "neutral";
-      c.stance.push(st);
-      if (st === "support") sup++;
-      if (st === "oppose") opp++;
-    }
-    pol.stats[y - 1].support = sup / Math.max(1, alive);
-    pol.stats[y - 1].oppose = opp / Math.max(1, alive);
-  }
+  // 지지/반대 — judge()가 시민이 볼 수 있는 것만으로 정한다
+  citizens.forEach((c, i) => (c.stance = polStance.stance[i]));
+  pol.stats.forEach((st, k) => {
+    st.support = polStance.support[k];
+    st.oppose = polStance.oppose[k];
+  });
+  base.stats.forEach((st, k) => {
+    st.support = baseStance.support[k];
+    st.oppose = baseStance.oppose[k];
+  });
 
   // 사건 피드
   const events: SocietyEvent[] = [];

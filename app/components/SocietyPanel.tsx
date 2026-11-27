@@ -290,7 +290,7 @@ export default function SocietyPanel({
                       },
                       {
                         k: "지지 / 반대",
-                        b: "—",
+                        b: `${Math.round(B.support * 100)}% / ${Math.round(B.oppose * 100)}%`,
                         p: `${Math.round(P.support * 100)}% / ${Math.round(P.oppose * 100)}%`,
                         d: "",
                       },
@@ -429,13 +429,13 @@ export default function SocietyPanel({
                 {citizen.emigratedYear !== null
                   ? `${citizen.emigratedYear}년차에 나라를 떠났어요.`
                   : citizen.stance[citizenLast] === "support"
-                    ? "새 제도를 지지해요 — 현재 사회에서 살 때보다 나아요."
+                    ? "정부를 지지해요 — 취임 전보다 내 삶과 이웃의 형편이 나아졌다고 느껴요."
                     : citizen.stance[citizenLast] === "oppose"
-                      ? "새 제도에 반대해요 — 현재 사회에서 살 때보다 못해요."
-                      : "크게 달라진 게 없다고 느껴요."}
+                      ? "정부에 반대해요 — 내 삶이나 이웃의 형편, 나라 경제가 나빠졌다고 느껴요."
+                      : "아직 판단을 유보하고 있어요."}
               </p>
               <div className="flex flex-col gap-1.5 rounded-2xl bg-white/[0.04] p-3 text-[12px]">
-                <span className="text-text-muted">새 제도에서의 삶 (현재 사회와 비교)</span>
+                <span className="text-text-muted">새 제도에서의 삶 (분석용 비교 — 시민 본인은 모르는 평행세계)</span>
                 {(() => {
                   const y = citizen.emigratedYear !== null ? citizen.emigratedYear - 1 : citizenLast;
                   const wb = citizen.wellbeing[y] ?? 0;

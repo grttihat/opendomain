@@ -192,6 +192,19 @@ export default function SocietyGame({
 
         <Section title="아무것도 하지 않으면">
           <ul className="flex flex-col gap-1 text-[13px] text-text-secondary">
+            {(() => {
+              const fall = P.findIndex((s, i) => i > 0 && s.oppose > 0.5 && P[i - 1].oppose > 0.5);
+              return (
+                <li>
+                  지지율 {Math.round(P[0].support * 100)}% →{" "}
+                  {fall >= 0 ? (
+                    <span className="text-red-300">{fall + 1}년차 정권 교체</span>
+                  ) : (
+                    <span>{GAME_YEARS}년차 {Math.round(last.support * 100)}%</span>
+                  )}
+                </li>
+              );
+            })()}
             <li>
               실업률 {(P[0].unemployment * 100).toFixed(1)}% →{" "}
               <span className="text-red-300">{GAME_YEARS}년차 {(last.unemployment * 100).toFixed(1)}%</span>
