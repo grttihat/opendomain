@@ -61,6 +61,16 @@ export const AI_SPEED: Record<
   fast: { label: "빠름", desc: "노출 직종의 연 7%가 대체", displace: 0.07, productivity: 1.7, reemployPenalty: 0.2 },
 };
 
+// AI 물결 — 대체가 고르게 오지 않고 몇 번의 큰 파도로 온다. 연도별 배수의
+// 합이 10이라 10년 동안의 총 대체량은 속도 설정(displace)과 같다.
+export const AI_WAVES: { year: number; name: string; target: string; power: 1 | 2 | 3 }[] = [
+  { year: 2, name: "콜센터·상담 자동화", target: "상담·고객응대", power: 1 },
+  { year: 4, name: "사무 AI 에이전트", target: "회계·총무·행정", power: 2 },
+  { year: 7, name: "자율주행 물류", target: "배송·운수", power: 3 },
+];
+const WAVE_FACTOR = [0.4, 1.6, 0.6, 2.0, 0.8, 0.8, 2.4, 0.8, 0.3, 0.3];
+const waveFactor = (y: number) => WAVE_FACTOR[y - 1] ?? 0.5;
+
 export type ValueKey = "wealth" | "equality" | "freedom" | "security";
 export const VALUE_LABEL: Record<ValueKey, string> = {
   wealth: "부",
@@ -125,6 +135,7 @@ export type YearStat = {
   startups: number;
   population: number;
   unemployment: number; // 실업률 0~1
+  aiDisplaced: number; // 그해 AI 자동화로 일자리를 잃은 사람 수
   fiscalBalance: number; // 재정수지 / 총생산 (음수면 적자)
   aiShare: number; // 총생산 중 자동화 생산 비중
 };
@@ -275,7 +286,7 @@ function incomeTax(taxable: number, median: number, lv: Levers): number {
 
 // 한 세계(레버 세트)에서 years년을 산다. 같은 seed면 같은 사람·같은 운.
 function runWorld(
-  lv: Levers,
+  lvs: Levers[], // 연도별 레버 (모자라면 마지막 값 유지)
   ai: AiSpeed,
   people: Person[],
   years: number,
@@ -307,11 +318,12 @@ function runWorld(
   let essentialR = essentialRatio ?? 0;
   let automated = 0; // 자동화가 만들어내는 연간 생산 (만원) — 자본 소유자에게 돌아감
 
-  const BI = lv.basicIncome * 12;
-  const floor = lv.minLiving * 12;
-  const repl = lv.unemployBenefit / 100;
-
   for (let y = 1; y <= years; y++) {
+    const lv = lvs[Math.min(y, lvs.length) - 1];
+    const BI = lv.basicIncome * 12;
+    const floor = lv.minLiving * 12;
+    const repl = lv.unemployBenefit / 100;
+    let aiDisplacedN = 0;
     const alive = ps.map((p, i) => (p.gone ? -1 : i)).filter((i) => i >= 0);
     const aliveN = Math.max(1, alive.length);
     const sortedPre = alive.map((i) => ps[i].base).sort((a, b) => a - b);
@@ -334,7 +346,8 @@ function runWorld(
       }
       const wage = p.base * (1 - p.capitalShare);
       if (wage <= 0) continue;
-      if (luck(i, y, 2) < sc.displace * p.aiExposure * 1.5) {
+      if (luck(i, y, 2) < sc.displace * waveFactor(y) * p.aiExposure * 1.5) {
+        aiDisplacedN++;
         p.employed = false;
         p.lostWage = wage;
         automated += wage * sc.productivity;
@@ -510,6 +523,7 @@ function runWorld(
       startups,
       population: alive.length,
       unemployment: unempN / aliveN,
+      aiDisplaced: aiDisplacedN,
       fiscalBalance,
       aiShare: aiTotal / Math.max(1, totalGross),
     });
@@ -521,7 +535,13 @@ function runWorld(
 
 export function simulateSociety(
   spec: SocietySpec,
-  opts: { population?: number; years?: number; seed?: number; ai?: AiSpeed } = {},
+  opts: {
+    population?: number;
+    years?: number;
+    seed?: number;
+    ai?: AiSpeed;
+    schedule?: Levers[]; // 새 제도의 연도별 레버 (통치자 게임). 없으면 spec.policy 고정
+  } = {},
 ): SocietyResult {
   const population = opts.population ?? 500;
   const years = opts.years ?? 10;
@@ -564,8 +584,9 @@ export function simulateSociety(
 
   for (const p of people) p.base0 = p.base;
   // 같은 사람들, 같은 운(seed), 같은 AI 충격으로 두 세계를 산다.
-  const base = runWorld(spec.baseline, ai, people, years, seed + 1, null, null);
-  const pol = runWorld(spec.policy, ai, people, years, seed + 1, base.wellbeing, base.essentialRatio);
+  const sched = opts.schedule && opts.schedule.length > 0 ? opts.schedule : [spec.policy];
+  const base = runWorld([spec.baseline], ai, people, years, seed + 1, null, null);
+  const pol = runWorld(sched, ai, people, years, seed + 1, base.wellbeing, base.essentialRatio);
 
   const citizens: Citizen[] = people.map((p, i) => ({
     id: i,
