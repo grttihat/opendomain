@@ -4,8 +4,10 @@ import { useCallback, useMemo, useState } from "react";
 import { useIdea } from "../state/IdeaContext";
 import { apiPath } from "@/lib/apiPath";
 import {
+  AI_SPEED,
   LEVER_META,
   VALUE_LABEL,
+  type AiSpeed,
   simulateSociety,
   type Citizen,
   type Levers,
@@ -46,6 +48,8 @@ export default function SocietyPanel({
   const [overrides, setOverrides] = useState<Partial<Levers>>({});
   const [view, setView] = useState<"village" | "report">("village");
   const [citizen, setCitizen] = useState<Citizen | null>(null);
+  const [ai, setAi] = useState<AiSpeed>("normal");
+  const [showAllLevers, setShowAllLevers] = useState(false);
 
   const build = async () => {
     if (!idea.trim() || loading) return;
@@ -72,7 +76,7 @@ export default function SocietyPanel({
     () => (spec ? { ...spec, policy: { ...spec.policy, ...overrides } } : null),
     [spec, overrides],
   );
-  const result = useMemo(() => (variant ? simulateSociety(variant) : null), [variant]);
+  const result = useMemo(() => (variant ? simulateSociety(variant, { ai }) : null), [variant, ai]);
 
   // --- 2D 마을 어댑터 ---------------------------------------------------------
   const village = useMemo(() => {
@@ -155,43 +159,86 @@ export default function SocietyPanel({
                 </div>
               </Section>
 
-              {/* 정책 레버 */}
-              <Section title="제도 레버 — 현재 사회 대비">
-                {LEVER_META.map((m) => {
-                  const base = spec.baseline[m.key];
-                  const val = variant.policy[m.key];
-                  const changed = Math.abs(val - base) > 0.005;
-                  return (
-                    <label key={m.key} className="flex flex-col gap-1 text-[12px]">
-                      <span className="flex justify-between">
-                        <span className={changed ? "text-text-primary" : "text-text-muted"}>{m.label}</span>
-                        <span className="text-text-secondary">
-                          {Math.round(base * 100)}
-                          {changed && (
-                            <>
-                              {" → "}
-                              <span className="text-text-primary">{Math.round(val * 100)}</span>
-                            </>
-                          )}
+              {/* AI 자동화 시나리오 — 정책이 아니라 두 세계에 똑같이 오는 충격 */}
+              <Section title="AI 자동화 속도">
+                <div className="flex gap-1 rounded-full bg-white/[0.06] p-1">
+                  {(Object.keys(AI_SPEED) as AiSpeed[]).map((k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => setAi(k)}
+                      className={`flex-1 rounded-full py-1.5 text-[13px] transition-colors ${
+                        ai === k ? "bg-white/[0.18] text-text-primary" : "text-text-muted hover:text-text-primary"
+                      }`}
+                    >
+                      {AI_SPEED[k].label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-text-muted">
+                  {AI_SPEED[ai].desc}. 현재 사회와 새 제도에 똑같이 적용돼요. 정책으로 고를 수 없는 미래예요.
+                </p>
+              </Section>
+
+              {/* 정책 레버 — 새 제도가 바꾼 것만 펼쳐 보인다 */}
+              <Section title="새 제도가 바꾸는 것">
+                {(() => {
+                  const isChanged = (k: keyof Levers) =>
+                    Math.abs(spec.policy[k] - spec.baseline[k]) > 1e-6 || k in overrides;
+                  const changed = LEVER_META.filter((m) => isChanged(m.key));
+                  const rest = LEVER_META.filter((m) => !isChanged(m.key));
+                  const row = (m: (typeof LEVER_META)[number]) => {
+                    const base = spec.baseline[m.key];
+                    const val = variant.policy[m.key];
+                    const diff = Math.abs(val - base) > 1e-6;
+                    return (
+                      <label key={m.key} className="flex flex-col gap-1 text-[12px]">
+                        <span className="flex justify-between gap-2">
+                          <span className={diff ? "text-text-primary" : "text-text-muted"}>{m.label}</span>
+                          <span className="text-text-secondary">
+                            {m.fmt(base)}
+                            {diff && (
+                              <>
+                                {" → "}
+                                <span className="text-text-primary">{m.fmt(val)}</span>
+                              </>
+                            )}
+                          </span>
                         </span>
-                      </span>
-                      <input
-                        type="range"
-                        min={0}
-                        max={m.max}
-                        step={0.01}
-                        value={val}
-                        onChange={(e) =>
-                          setOverrides((o) => ({ ...o, [m.key]: Number(e.target.value) }))
-                        }
-                        className="accent-white"
-                      />
-                      {spec.leverNotes[m.key] && (
-                        <span className="text-[11px] text-text-muted">{spec.leverNotes[m.key]}</span>
+                        <input
+                          type="range"
+                          min={m.min}
+                          max={m.max}
+                          step={m.step}
+                          value={val}
+                          onChange={(e) =>
+                            setOverrides((o) => ({ ...o, [m.key]: Number(e.target.value) }))
+                          }
+                          className="accent-white"
+                        />
+                        <span className="text-[11px] text-text-muted">{spec.leverNotes[m.key] ?? m.hint}</span>
+                      </label>
+                    );
+                  };
+                  return (
+                    <>
+                      {changed.length === 0 && (
+                        <p className="text-[12px] text-text-muted">바뀐 레버가 없어요. 아래에서 직접 움직여 보세요.</p>
                       )}
-                    </label>
+                      {changed.map(row)}
+                      {rest.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setShowAllLevers((v) => !v)}
+                          className="self-start text-[12px] text-text-muted hover:text-text-primary"
+                        >
+                          {showAllLevers ? "접기" : `나머지 ${rest.length}개 — 현재 한국 그대로`}
+                        </button>
+                      )}
+                      {showAllLevers && rest.map(row)}
+                    </>
                   );
-                })}
+                })()}
                 {Object.keys(overrides).length > 0 && (
                   <button
                     type="button"
@@ -278,6 +325,18 @@ export default function SocietyPanel({
                         d: signed(P.emigrants - B.emigrants),
                       },
                       {
+                        k: "실업률",
+                        b: `${(B.unemployment * 100).toFixed(1)}%`,
+                        p: `${(P.unemployment * 100).toFixed(1)}%`,
+                        d: `${signed((P.unemployment - B.unemployment) * 100, 1)}%p`,
+                      },
+                      {
+                        k: "재정수지 (GDP 대비)",
+                        b: `${signed(B.fiscalBalance * 100, 1)}%`,
+                        p: `${signed(P.fiscalBalance * 100, 1)}%`,
+                        d: P.fiscalBalance < -0.03 ? "적자 — 지속 불가" : "",
+                      },
+                      {
                         k: "탈세 비율",
                         b: `${(B.evasion * 100).toFixed(1)}%`,
                         p: `${(P.evasion * 100).toFixed(1)}%`,
@@ -336,6 +395,7 @@ export default function SocietyPanel({
                         <span className="text-[12px] text-text-secondary">
                           소득 {signed(c.incomeChange)}% · 삶의 만족 {signed(c.wellbeingChange * 100)} · 지지{" "}
                           {Math.round(c.support * 100)}% · 반대 {Math.round(c.oppose * 100)}%
+                          {` · 실업 ${Math.round(c.unemployment * 100)}%`}
                           {c.emigrated > 0 && ` · ${c.emigrated}명 떠남`}
                         </span>
                       </div>
@@ -411,6 +471,20 @@ export default function SocietyPanel({
                     </>
                   );
                 })()}
+                <span className="text-text-secondary">
+                  AI 대체 위험 {Math.round(citizen.aiExposure * 100)}%
+                </span>
+                {citizen.aiDisplacedYears.length > 0 && (
+                  <span className="text-text-secondary">
+                    AI 자동화로 실직: {citizen.aiDisplacedYears.join(", ")}년차
+                  </span>
+                )}
+                {citizen.unemployedYears.length > 0 && (
+                  <span className="text-text-secondary">일자리 없음: {citizen.unemployedYears.join(", ")}년차</span>
+                )}
+                {citizen.reemployedYears.length > 0 && (
+                  <span className="text-text-secondary">재취업: {citizen.reemployedYears.join(", ")}년차</span>
+                )}
                 {citizen.foundedYears.length > 0 && (
                   <span className="text-text-secondary">창업: {citizen.foundedYears.join(", ")}년차</span>
                 )}
