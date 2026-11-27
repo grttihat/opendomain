@@ -365,7 +365,7 @@ function PageInner() {
               onClick={() => setMarketOpen(true)}
               className="flex h-12 flex-1 items-center justify-center text-[14px] text-text-muted transition-colors hover:text-text-secondary"
             >
-              <span>가상시장</span>
+              <span>가상검증</span>
             </button>
           </nav>
         </>

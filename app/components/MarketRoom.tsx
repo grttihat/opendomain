@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useIdea } from "../state/IdeaContext";
 import { apiPath } from "@/lib/apiPath";
 import { simulate, type MarketSpec, type Npc } from "@/lib/sim/market";
-import Village2D from "./Village2D";
+import Village2D, { type VillageStatus } from "./Village2D";
+import SocietyPanel from "./SocietyPanel";
 
 // 가상 시장 — 아이디어 하나로 NPC 고객 수백 명의 시장을 만들고, 몇 주치
 // 구매·사용·이탈·입소문을 빠르게 돌려본다. LLM은 시장 설정을 만들 때 한
@@ -17,7 +18,7 @@ const won = (n: number) =>
 const pct = (a: number, b: number) =>
   b > 0 ? `${Math.round((a / b) * 100)}%` : "0%";
 
-function Bar({
+export function Bar({
   label,
   value,
   max,
@@ -42,7 +43,7 @@ function Bar({
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+export function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-2 rounded-2xl bg-white/[0.04] p-4">
       <h3 className="text-[13px] font-medium text-text-primary">{title}</h3>
@@ -71,6 +72,8 @@ export default function MarketRoom({
   const [pickedWeek, setPickedWeek] = useState<number | null>(null);
   const [npc, setNpc] = useState<Npc | null>(null);
   const [view, setView] = useState<"village" | "report">("village");
+  // 가상검증 종류: 제품(수요) / 사회제도
+  const [lab, setLab] = useState<"market" | "society">("market");
 
   useEffect(() => {
     if (open && !spec) setIdea(initialIdea);
@@ -114,6 +117,68 @@ export default function MarketRoom({
   // 같은 seed라 조절값만 바뀐 비교가 공정하다.
   const result = useMemo(() => (variant ? simulate(variant) : null), [variant]);
 
+  // --- 2D 마을 어댑터 (훅이라 early return 위에 둔다) ----------------------
+  const village = useMemo(() => {
+    if (!result || !spec) return null;
+    const people = result.npcs.map((n) => ({ id: n.id, segment: n.segment }));
+    const segments = spec.segments.map((s) => s.name);
+    const priorityIds = result.events.map((e) => e.npcId);
+    const events = result.events.map((e) => ({
+      tick: e.week,
+      personId: e.npcId,
+      bubble: e.text.includes("첫 구매")
+        ? "첫 구매!"
+        : e.text.includes("추천")
+          ? "이거 좋아!"
+          : e.text.includes("작동")
+            ? "작동 안 돼…"
+            : e.text.includes("기대")
+              ? "기대 이하…"
+              : "샀어요",
+    }));
+    return { people, segments, priorityIds, events };
+  }, [result, spec]);
+  const marketState = useCallback(
+    (n: Npc, w: number) =>
+      n.churnedWeek !== null && n.churnedWeek <= w
+        ? "churned"
+        : n.boughtWeek !== null && n.boughtWeek <= w
+          ? "using"
+          : n.awareWeek !== null && n.awareWeek <= w
+            ? "aware"
+            : "unaware",
+    [],
+  );
+  const statusAt = useCallback(
+    (id: number, w: number): VillageStatus => {
+      const n = result?.npcs[id];
+      if (!n) return { icon: null };
+      const st = marketState(n, w);
+      if (st === "unaware") return { icon: null, faded: true };
+      if (st === "aware") return { icon: "?", iconColor: "#ffffff" };
+      if (st === "using") return { icon: "♥", iconColor: "#4be08a", bag: true };
+      return { icon: "✕", iconColor: "#ff5a5a" };
+    },
+    [result, marketState],
+  );
+  const visitsAt = useCallback(
+    (id: number, w: number) => result?.npcs[id]?.boughtWeek === w,
+    [result],
+  );
+  const legend = useCallback(
+    (w: number) => {
+      const c = { unaware: 0, aware: 0, using: 0, churned: 0 };
+      for (const n of result?.npcs ?? []) c[marketState(n, w)]++;
+      return [
+        { icon: "·", color: "#8a8a8a", label: "모름", n: c.unaware },
+        { icon: "?", color: "#ffffff", label: "알게 됨", n: c.aware },
+        { icon: "♥", color: "#4be08a", label: "사용 중", n: c.using },
+        { icon: "✕", color: "#ff5a5a", label: "그만둠", n: c.churned },
+      ];
+    },
+    [result, marketState],
+  );
+
   if (!open) return null;
 
   const maxWeekly = result
@@ -135,9 +200,35 @@ export default function MarketRoom({
             <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <h2 className="text-[16px] font-medium text-text-primary">가상 시장</h2>
+        <h2 className="text-[16px] font-medium text-text-primary">가상검증</h2>
       </header>
+      <div className="shrink-0 px-4 pb-3">
+        <div className="mx-auto flex max-w-[560px] gap-1 rounded-full bg-white/[0.06] p-1">
+          {(
+            [
+              { k: "market", label: "제품 · 시장" },
+              { k: "society", label: "사회 · 제도" },
+            ] as const
+          ).map((t) => (
+            <button
+              key={t.k}
+              type="button"
+              onClick={() => setLab(t.k)}
+              className={`flex-1 rounded-full py-2 text-[13px] transition-colors ${
+                lab === t.k
+                  ? "bg-white/[0.18] text-text-primary"
+                  : "text-text-muted hover:text-text-primary"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
+      {lab === "society" ? (
+        <SocietyPanel initialIdea={initialIdea} />
+      ) : (
       <div className="flex-1 overflow-y-auto px-4 pb-10">
         <div className="mx-auto flex max-w-[560px] flex-col gap-3">
           {/* 아이디어 입력 */}
@@ -242,12 +333,22 @@ export default function MarketRoom({
               </div>
 
               {view === "village" ? (
-                <Village2D
-                  result={result}
-                  segments={spec.segments.map((s) => s.name)}
-                  productName={spec.product.name}
-                  onPickNpc={setNpc}
-                />
+                village && (
+                  <Village2D
+                    people={village.people}
+                    segments={village.segments}
+                    ticks={result.weeks}
+                    tickUnit="주차"
+                    centerName={spec.product.name}
+                    center="shop"
+                    statusAt={statusAt}
+                    visitsAt={visitsAt}
+                    events={village.events}
+                    legend={legend}
+                    priorityIds={village.priorityIds}
+                    onPick={(id) => setNpc(result.npcs[id] ?? null)}
+                  />
+                )
               ) : (
               <>
               {/* 핵심 숫자 */}
@@ -344,9 +445,10 @@ export default function MarketRoom({
           )}
         </div>
       </div>
+      )}
 
       {/* NPC 상세 */}
-      {npc && variant && (
+      {lab === "market" && npc && variant && (
         <div className="absolute inset-0 z-10 flex items-end bg-black/60" onClick={() => setNpc(null)}>
           <div
             className="safe-bottom w-full rounded-t-[28px] bg-[#141414] p-5"
