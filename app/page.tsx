@@ -17,6 +17,7 @@ import AuthMenu from "./components/AuthMenu";
 import DesktopMenuButton from "./components/DesktopMenuButton";
 import SessionHistoryDrawer from "./components/SessionHistoryDrawer";
 import MarketRoom from "./components/MarketRoom";
+import type { IncomingIdea, InventQuest } from "@/lib/sim/societyCrisis";
 import { IdeaProvider, useIdea } from "./state/IdeaContext";
 
 function PageInner() {
@@ -36,6 +37,7 @@ function PageInner() {
     showMemoList,
     startMemoDraft,
     startTopicDraft,
+    setPendingTopic,
     loginModalOpen,
     setLoginModalOpen,
     decomposition,
@@ -55,6 +57,24 @@ function PageInner() {
   const [businessInfoOpen, setBusinessInfoOpen] = useState(false);
   const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
   const [marketOpen, setMarketOpen] = useState(false);
+  // 가상사회 게임 → 사고확장기로 해법을 찾으러 나온 상태. 게임은 MarketRoom
+  // 안에 숨은 채로 멈춰 있고, 아이디어를 고르면 들고 돌아간다.
+  const [quest, setQuest] = useState<InventQuest | null>(null);
+  const [incoming, setIncoming] = useState<IncomingIdea | null>(null);
+  const questIdeas = quest ? combinedIdeas.filter((c) => c.createdAt >= quest.startedAt).slice(0, 5) : [];
+  const startInvent = (q: { crisisTitle: string; problem: string }) => {
+    setQuest({ ...q, startedAt: Date.now() });
+    setMarketOpen(false);
+    startTopicDraft();
+    setPendingTopic(q.problem);
+  };
+  const backToGame = (idea?: { title: string; summary: string }) => {
+    if (idea && quest) {
+      setIncoming({ title: idea.title, summary: idea.summary, crisisTitle: quest.crisisTitle, problem: quest.problem });
+    }
+    setQuest(null);
+    setMarketOpen(true);
+  };
   // Topic home mode — null by default so the BottomBar stays hidden until
   // the user explicitly picks 분해 / 확장 / 증명 from the TopBar.
   const [homeMode, setHomeMode] = useState<TopMode | null>(null);
@@ -369,9 +389,45 @@ function PageInner() {
             </button>
           </nav>
         </>
+      {quest && !marketOpen && (
+        <div className="safe-top fixed left-1/2 top-2 z-40 flex w-[min(560px,calc(100%-24px))] -translate-x-1/2 flex-col gap-2 rounded-2xl bg-[#1d1a10]/95 p-3 shadow-lg ring-1 ring-amber-300/30">
+          <div className="flex items-center gap-2">
+            <span className="flex-1 text-[12px] text-amber-200">
+              🎮 게임 멈춤 · 「{quest.crisisTitle}」 해법 찾는 중
+              <span className="block text-[11px] text-text-muted">
+                {questIdeas.length > 0
+                  ? "조합으로 나온 아이디어를 게임에 가져갈 수 있어요."
+                  : "주제를 분해하고 칩과 조합해 아이디어를 만들어 보세요."}
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={() => backToGame()}
+              className="shrink-0 rounded-full bg-white/[0.12] px-3 py-1.5 text-[12px] text-text-primary hover:bg-white/[0.2]"
+            >
+              게임으로
+            </button>
+          </div>
+          {questIdeas.map((idea) => (
+            <button
+              key={idea.id}
+              type="button"
+              onClick={() => backToGame(idea)}
+              className="rounded-xl bg-white/[0.06] px-3 py-2 text-left text-[12px] hover:bg-white/[0.12]"
+            >
+              <span className="text-text-primary">🧪 {idea.title}</span>
+              <span className="block truncate text-text-muted">{idea.summary}</span>
+              <span className="text-amber-200">이 해법을 게임에 가져가기 →</span>
+            </button>
+          ))}
+        </div>
+      )}
       <MarketRoom
         open={marketOpen}
         onClose={() => setMarketOpen(false)}
+        onInvent={startInvent}
+        incoming={incoming}
+        onIncomingDone={() => setIncoming(null)}
         initialIdea={
           combinedIdeas[0]
             ? `${combinedIdeas[0].title} — ${combinedIdeas[0].summary}`

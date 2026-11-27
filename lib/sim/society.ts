@@ -121,6 +121,7 @@ export type Citizen = {
   unemployedYears: number[];
   aiDisplacedYears: number[]; // AI 때문에 일자리를 잃은 해
   reemployedYears: number[];
+  trappedYears: number[]; // 근로소득이 최저생활 보장선에 갇혀 일할 동기를 잃은 해
 };
 
 export type YearStat = {
@@ -273,6 +274,7 @@ type WorldOut = {
   unemployed: number[][];
   aiDisplaced: number[][];
   reemployed: number[][];
+  trapped: number[][];
   essentialRatio: number;
 };
 
@@ -314,6 +316,7 @@ function runWorld(
   const unemployed: number[][] = ps.map(() => []);
   const aiDisplaced: number[][] = ps.map(() => []);
   const reemployed: number[][] = ps.map(() => []);
+  const trapped: number[][] = ps.map(() => []);
   let emigrants = 0;
   let essentialR = essentialRatio ?? 0;
   let ref = refWb;
@@ -391,10 +394,11 @@ function runWorld(
       const keep = 1 - probeTax;
       // 복지 함정: 일해서 손에 쥐는 돈이 최저생활 보장선보다 적으면, 더 벌어도
       // 보충분이 그만큼 줄어서 일할 이유가 사라진다 (실효 한계세율 100%).
-      const trapped = clamp((floor - (p.base * keep + BI)) / Math.max(1, floor), 0, 1);
+      const trapRatio = clamp((floor - (p.base * keep + BI)) / Math.max(1, floor), 0, 1);
+      if (p.employed && trapRatio > 0.15) trapped[i].push(y);
       const effort = p.employed
         ? clamp(
-            0.85 + 0.3 * (keep - 0.75) - 0.03 * (BI / median) - 0.3 * trapped + (luck(i, y, 4) * 2 - 1) * 0.05,
+            0.85 + 0.3 * (keep - 0.75) - 0.03 * (BI / median) - 0.3 * trapRatio + (luck(i, y, 4) * 2 - 1) * 0.05,
             0.5,
             1.1,
           )
@@ -538,7 +542,7 @@ function runWorld(
     disposable.push(disp);
     wellbeing.push(wbRow);
   }
-  return { stats, disposable, wellbeing, gone, founded, evaded, unemployed, aiDisplaced, reemployed, essentialRatio: essentialR };
+  return { stats, disposable, wellbeing, gone, founded, evaded, unemployed, aiDisplaced, reemployed, trapped, essentialRatio: essentialR };
 }
 
 // 정부 평가 — 평행세계("다른 제도였다면")를 모른다. 시민이 실제로 아는 것만 쓴다:
@@ -683,6 +687,7 @@ export function simulateSociety(
     unemployedYears: pol.unemployed[i],
     aiDisplacedYears: pol.aiDisplaced[i],
     reemployedYears: pol.reemployed[i],
+    trappedYears: pol.trapped[i],
   }));
 
   // 지지/반대 — judge()가 시민이 볼 수 있는 것만으로 정한다

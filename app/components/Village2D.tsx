@@ -28,6 +28,10 @@ export type VillageStatus = {
   gone?: boolean; // 마을을 떠남 (이민 등)
 };
 export type VillageEvent = { tick: number; personId: number; bubble: string };
+// 동네 연출 (가상사회 게임): 어두워짐(실업), 피켓(파업·시위), 표지판(사건)
+export type ZoneMood = { dark?: number; picket?: boolean; sign?: string; signColor?: string };
+// 가운데 건물 연출: 금고(0~1), 공공시설 축소, 축제
+export type CenterMood = { treasury?: number; closed?: boolean; festival?: boolean };
 export type VillageLegend = { icon: string; color: string; label: string; n: number };
 
 type Rect = { x: number; y: number; w: number; h: number };
@@ -248,6 +252,9 @@ export default function Village2D({
   priorityIds,
   footnote,
   onPick,
+  live = false,
+  zoneMood,
+  centerMood,
 }: {
   people: VillagePerson[];
   segments: string[];
@@ -262,6 +269,9 @@ export default function Village2D({
   priorityIds: number[]; // 표본에 먼저 넣을 사람 (사건 주인공)
   footnote?: string;
   onPick: (id: number) => void;
+  live?: boolean; // 게임: 결과가 한 해씩 늘어날 때 처음부터 다시 재생하지 않고 최신 해로
+  zoneMood?: (segIndex: number, tick: number) => ZoneMood;
+  centerMood?: (tick: number) => CenterMood;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -276,6 +286,14 @@ export default function Village2D({
   playingRef.current = playing;
   speedRef.current = speed;
   statusRef.current = statusAt;
+  const zoneMoodRef = useRef(zoneMood);
+  const centerMoodRef = useRef(centerMood);
+  zoneMoodRef.current = zoneMood;
+  centerMoodRef.current = centerMood;
+  const liveRef = useRef(live);
+  liveRef.current = live;
+  const ticksRef = useRef(ticks);
+  ticksRef.current = ticks;
 
   // 표본: 사건 주인공을 먼저 넣고, 나머지는 그룹 비율대로.
   const sample = useMemo(() => {
@@ -337,9 +355,21 @@ export default function Village2D({
         step: 0,
       };
     });
-    setTick(1);
-    setPlaying(true);
+    if (liveRef.current) {
+      setTick(Math.max(1, ticksRef.current));
+      setPlaying(false);
+    } else {
+      setTick(1);
+      setPlaying(true);
+    }
   }, [sample, segments, center, layout]);
+
+  // 게임: 한 해가 지나면 그 해로 넘어간다 (이동·이주·시위는 틱 변화로 연출됨)
+  useEffect(() => {
+    if (!live) return;
+    setPlaying(false);
+    setTick(Math.max(1, ticks));
+  }, [live, ticks]);
 
   // 틱이 바뀌면: 방문할 사람은 가운데 건물로, 떠날 사람은 마을 밖으로,
   // 그 틱 사건은 말풍선.
@@ -509,6 +539,57 @@ export default function Village2D({
       const label = centerName.length > 9 ? centerName.slice(0, 9) + "…" : centerName;
       ctx.fillText(label, SHOP.x + SHOP.w / 2, SHOP.y + 8);
 
+      // 동네 연출 — 어두워짐(실업)과 사건 표지판
+      const zm = zoneMoodRef.current;
+      if (zm) {
+        segments.forEach((_, i) => {
+          const z = zones[i];
+          const m = zm(i, tk);
+          if (m.dark && m.dark > 0) {
+            ctx.fillStyle = `rgba(8,10,28,${Math.min(0.6, m.dark * 0.6)})`;
+            ctx.fillRect(z.x, z.y, z.w, z.h);
+          }
+          if (m.sign) {
+            ctx.font = "bold 7px sans-serif";
+            const tw = ctx.measureText(m.sign).width + 10;
+            const sx = z.x + z.w / 2;
+            const sy = z.y + 3 * T + 15;
+            ctx.fillStyle = m.signColor ?? "#e0453a";
+            ctx.fillRect(sx - tw / 2, sy - 6, tw, 12);
+            ctx.fillStyle = "#ffffff";
+            ctx.fillText(m.sign, sx, sy);
+          }
+        });
+      }
+      // 가운데 건물 — 금고 막대, 공공시설 축소, 축제
+      const cm = centerMoodRef.current?.(tk);
+      if (cm) {
+        if (cm.treasury !== undefined) {
+          const bw = SHOP.w - 12;
+          const fill = Math.max(0, Math.min(1, cm.treasury));
+          ctx.fillStyle = "rgba(20,14,8,0.85)";
+          ctx.fillRect(SHOP.x + 6, SHOP.y - 9, bw, 6);
+          ctx.fillStyle = fill < 0.3 ? "#e0453a" : fill < 0.6 ? "#f0b43a" : "#f6d365";
+          ctx.fillRect(SHOP.x + 7, SHOP.y - 8, (bw - 2) * fill, 4);
+        }
+        if (cm.closed) {
+          ctx.fillStyle = "#e0453a";
+          ctx.fillRect(SHOP.x + SHOP.w / 2 - 22, SHOP.y + SHOP.h - 30, 44, 10);
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 6.5px sans-serif";
+          ctx.fillText("공공시설 축소", SHOP.x + SHOP.w / 2, SHOP.y + SHOP.h - 25);
+        }
+        if (cm.festival) {
+          const colors = ["#ff5a5a", "#ffd84b", "#4be08a", "#8fd3ff", "#ff9bd6"];
+          for (let k = 0; k < 24; k++) {
+            ctx.fillStyle = colors[k % colors.length];
+            const fx = DOOR.x - 50 + ((k * 37 + now / 30) % 100);
+            const fy = DOOR.y - 20 + ((k * 53 + now / 18) % 40);
+            ctx.fillRect(fx, fy, 2, 2);
+          }
+        }
+      }
+
       // 동네 표지판
       segments.forEach((name, i) => {
         const z = zones[i];
@@ -553,6 +634,15 @@ export default function Village2D({
           ctx.fillRect(x + 4, y - 7, 3, 1);
         }
         ctx.globalAlpha = 1;
+        // 파업·시위 피켓
+        if (zm && ag.mode !== "leaving" && zm(ag.zone, tk).picket && ag.person.id % 3 === 0) {
+          ctx.fillStyle = "#8a6a4a";
+          ctx.fillRect(x + 5, y - 17, 1, 11);
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(x + 2, y - 22, 8, 6);
+          ctx.fillStyle = "#e0453a";
+          ctx.fillRect(x + 3, y - 20, 6, 1);
+        }
         if (st.icon) {
           ctx.fillStyle = st.iconColor ?? "#ffffff";
           ctx.font = "bold 7px sans-serif";

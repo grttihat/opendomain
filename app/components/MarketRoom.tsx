@@ -6,6 +6,7 @@ import { apiPath } from "@/lib/apiPath";
 import { simulate, type MarketSpec, type Npc } from "@/lib/sim/market";
 import Village2D, { type VillageStatus } from "./Village2D";
 import SocietyPanel from "./SocietyPanel";
+import type { IncomingIdea } from "@/lib/sim/societyCrisis";
 
 // 가상 시장 — 아이디어 하나로 NPC 고객 수백 명의 시장을 만들고, 몇 주치
 // 구매·사용·이탈·입소문을 빠르게 돌려본다. LLM은 시장 설정을 만들 때 한
@@ -56,10 +57,18 @@ export default function MarketRoom({
   open,
   onClose,
   initialIdea,
+  onInvent,
+  incoming = null,
+  onIncomingDone,
 }: {
   open: boolean;
   onClose: () => void;
   initialIdea: string;
+  // 가상사회 게임 ↔ 사고확장기 왕복. 닫혀 있어도 게임 상태를 지키려고
+  // 컴포넌트는 언마운트하지 않고 숨기기만 한다.
+  onInvent?: (q: { crisisTitle: string; problem: string }) => void;
+  incoming?: IncomingIdea | null;
+  onIncomingDone?: () => void;
 }) {
   const { apiHeaders } = useIdea();
   const [idea, setIdea] = useState(initialIdea);
@@ -74,6 +83,10 @@ export default function MarketRoom({
   const [view, setView] = useState<"village" | "report">("village");
   // 가상검증 종류: 제품(수요) / 사회제도
   const [lab, setLab] = useState<"market" | "society">("market");
+  const [everOpened, setEverOpened] = useState(open);
+  useEffect(() => {
+    if (open) setEverOpened(true);
+  }, [open]);
 
   useEffect(() => {
     if (open && !spec) setIdea(initialIdea);
@@ -179,7 +192,9 @@ export default function MarketRoom({
     [result, marketState],
   );
 
-  if (!open) return null;
+  // 한 번도 열지 않았으면 그리지 않는다. 한 번 연 뒤로는 숨기기만 해서
+  // 사고확장기에 다녀와도 게임이 그대로 남아 있게 한다.
+  if (!open && !everOpened) return null;
 
   const maxWeekly = result
     ? Math.max(1, ...result.weekly.map((w) => w.owners))
@@ -188,7 +203,7 @@ export default function MarketRoom({
   const weekRow = result?.weekly.find((w) => w.week === week);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black">
+    <div className={`fixed inset-0 z-50 flex-col bg-black ${open ? "flex" : "hidden"}`}>
       <header className="safe-top flex shrink-0 items-center gap-2 px-3 pb-2 pt-3">
         <button
           type="button"
@@ -227,7 +242,12 @@ export default function MarketRoom({
       </div>
 
       {lab === "society" ? (
-        <SocietyPanel initialIdea={initialIdea} />
+        <SocietyPanel
+          initialIdea={initialIdea}
+          onInvent={onInvent}
+          incoming={incoming}
+          onIncomingDone={onIncomingDone}
+        />
       ) : (
       <div className="flex-1 overflow-y-auto px-4 pb-10">
         <div className="mx-auto flex max-w-[560px] flex-col gap-3">

@@ -17,6 +17,7 @@ import {
 import SocietyVillage, { OPPOSE, SUPPORT } from "./SocietyVillage";
 import SocietyGame from "./SocietyGame";
 import { splitSummary } from "@/lib/sim/societyGame";
+import type { IncomingIdea } from "@/lib/sim/societyCrisis";
 import { Bar, Section } from "./MarketRoom";
 
 // 가상 사회 — 제도·사상 아이디어를 정책 레버로 옮기고, 같은 시민들이
@@ -30,9 +31,15 @@ const signed = (n: number, digits = 0) =>
 export default function SocietyPanel({
   initialIdea,
   presetSpec = null,
+  onInvent,
+  incoming = null,
+  onIncomingDone,
 }: {
   initialIdea: string;
   presetSpec?: SocietySpec | null; // 미리 만든 설정으로 시작 (데모·테스트용)
+  onInvent?: (q: { crisisTitle: string; problem: string }) => void;
+  incoming?: IncomingIdea | null;
+  onIncomingDone?: () => void;
 }) {
   const { apiHeaders } = useIdea();
   const [idea, setIdea] = useState(initialIdea);
@@ -129,7 +136,14 @@ export default function SocietyPanel({
             </div>
           )}
 
-          {spec && mode === "game" && <SocietyGame key={JSON.stringify(spec)} spec={spec} onPick={pick} />}
+          {spec && mode === "game" && <SocietyGame
+              key={JSON.stringify(spec)}
+              spec={spec}
+              onPick={pick}
+              onInvent={onInvent}
+              incoming={incoming}
+              onIncomingDone={onIncomingDone}
+            />}
 
           {spec && mode === "sandbox" && variant && result && P && B && (
             <>
